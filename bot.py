@@ -23,7 +23,7 @@ intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 DURACION_DIAS = 20
-LOG_CHANNEL_ID = 1478940715206709309  # ⚠️ PON AQUÍ TU ID DE CANAL DE LOGS
+LOG_CHANNEL_ID = 1477110955669323899  # ⚠️ PON AQUÍ TU ID DE CANAL DE LOGS
 
 # ==========================
 # FUNCIONES JSON
