@@ -36,21 +36,20 @@ conn = psycopg2.connect(DATABASE_URL)
 cursor = conn.cursor()
 
 cursor.execute("""
-CREATE TABLE IF NOT EXISTS boxes(
-id SERIAL PRIMARY KEY,
-nombre TEXT,
-canal_id BIGINT,
-dueno_id BIGINT,
-staff_id BIGINT,
-miembros TEXT,
-inicio TIMESTAMP,
-fin TIMESTAMP,
-avisado BIGINT
+CREATE TABLE IF NOT EXISTS boxes (
+    id SERIAL PRIMARY KEY,
+    nombre TEXT,
+    canal_id BIGINT,
+    dueno_id BIGINT,
+    staff_id BIGINT,
+    miembros TEXT,
+    inicio TIMESTAMP,
+    fecha_fin TIMESTAMP,
+    avisado BOOLEAN DEFAULT FALSE
 )
 """)
 
 conn.commit()
-
 # ---------------- FUNCION LOG ----------------
 
 async def log(guild, texto):
@@ -191,24 +190,32 @@ async def boxinfo(ctx, id_box: int):
 
 @bot.command()
 @commands.has_permissions(manage_channels=True)
-async def renovar(ctx, id_box: int):
+async def renovacion(ctx, box_id: int):
 
-    cursor.execute("SELECT fin,nombre FROM boxes WHERE id=?", (id_box,))
-    data = cursor.fetchone()
+    nueva_fecha = datetime.now() + timedelta(days=20)
 
-    if not data:
-        await ctx.send("Box no encontrada")
-        return
+    cursor.execute(
+        "UPDATE boxes SET fecha_fin = %s WHERE id = %s RETURNING dueno_id",
+        (nueva_fecha, box_id)
+    )
 
-    nueva = datetime.strptime(data[0], "%Y-%m-%d %H:%M:%S.%f") + timedelta(days=DURACION_DIAS)
-
-    cursor.execute("UPDATE boxes SET fin=?,avisado=0 WHERE id=?", (nueva,id_box))
+    resultado = cursor.fetchone()
     conn.commit()
 
-    await ctx.send("Box renovada")
+    if resultado:
 
-    await log(ctx.guild, f"🔄 **BOX RENOVADA**\nBox: {data[1]}\nStaff: {ctx.author.mention}")
+        dueno_id = resultado[0]
 
+        dueno = await bot.fetch_user(dueno_id)
+
+        mensaje = f"🐾 Hola {dueno.mention}, tu **Box** ha sido extendida por **20 días más**."
+
+        await dueno.send(mensaje)
+
+        await ctx.send("✅ La box fue renovada correctamente.")
+
+    else:
+        await ctx.send("❌ No se encontró esa box.")
 # ---------------- AÑADIR MIEMBRO ----------------
 
 @bot.command()
