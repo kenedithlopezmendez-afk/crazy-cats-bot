@@ -11,7 +11,7 @@ DURACION_DIAS = 20
 LOG_CHANNEL_ID = 1477110955669323899
 
 intents = discord.Intents.all()
-bot = commands.Bot(command_prefix="!", intents=intents)
+bot = commands.Bot(command_prefix="?", intents=intents)
 
 # ---------------- KEEP ALIVE (RENDER) ----------------
 
