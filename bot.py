@@ -1,169 +1,295 @@
-import threading
+import discord
+from discord.ext import commands, tasks
 from flask import Flask
+import sqlite3
+from datetime import datetime, timedelta
+import os
+import threading
 
-app = Flask(__name__)
+TOKEN = os.environ["TOKEN"]
+DURACION_DIAS = 20
+LOG_CHANNEL = "box-logs"
+
+intents = discord.Intents.all()
+bot = commands.Bot(command_prefix="!", intents=intents)
+
+# ---------------- KEEP ALIVE (RENDER) ----------------
+
+app = Flask('')
 
 @app.route('/')
 def home():
     return "Bot activo"
 
-def run_web():
-    app.run(host="0.0.0.0", port=10000)
+def run():
+    app.run(host='0.0.0.0', port=10000)
 
-threading.Thread(target=run_web).start()
-import discord
-from discord.ext import commands, tasks
-from datetime import datetime, timedelta
-import json
-import os
+def keep_alive():
+    t = threading.Thread(target=run)
+    t.start()
 
-TOKEN = os.environ["TOKEN"]
+# ---------------- BASE DE DATOS ----------------
 
-intents = discord.Intents.all()
-bot = commands.Bot(command_prefix="!", intents=intents)
+conn = sqlite3.connect("boxes.db")
+cursor = conn.cursor()
 
-DURACION_DIAS = 20
-LOG_CHANNEL_ID = 1477110955669323899  # ⚠️ PON AQUÍ TU ID DE CANAL DE LOGS
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS boxes(
+id INTEGER PRIMARY KEY AUTOINCREMENT,
+nombre TEXT,
+canal_id INTEGER,
+dueno_id INTEGER,
+staff_id INTEGER,
+miembros TEXT,
+inicio TEXT,
+fin TEXT,
+avisado INTEGER
+)
+""")
 
-# ==========================
-# FUNCIONES JSON
-# ==========================
+conn.commit()
 
-def cargar_boxes():
-    with open("boxes.json", "r") as f:
-        return json.load(f)
+# ---------------- FUNCION LOG ----------------
 
-def guardar_boxes(data):
-    with open("boxes.json", "w") as f:
-        json.dump(data, f, indent=4)
+async def log(guild, texto):
 
-# ==========================
-# CREAR CAMITA
-# ==========================
+    canal = discord.utils.get(guild.text_channels, name=LOG_CHANNEL)
+
+    if canal:
+        embed = discord.Embed(
+            description=texto,
+            color=discord.Color.orange()
+        )
+        await canal.send(embed=embed)
+
+# ---------------- BOT READY ----------------
+
+@bot.event
+async def on_ready():
+    print(f"Conectado como {bot.user}")
+    revisar_boxes.start()
+
+# ---------------- CREAR BOX ----------------
 
 @bot.command()
 @commands.has_permissions(manage_channels=True)
-async def box(ctx, nombre: str, *miembros: discord.Member):
+async def box(ctx, nombre, dueno: discord.Member, *miembros: discord.Member):
 
     guild = ctx.guild
-    fecha_inicio = datetime.now()
-    fecha_fin = fecha_inicio + timedelta(days=DURACION_DIAS)
 
-    total_personas = 1 + len(miembros)
+    inicio = datetime.now()
+    fin = inicio + timedelta(days=DURACION_DIAS)
 
-    if total_personas == 1:
+    personas = [dueno] + list(miembros)
+
+    total = len(personas)
+
+    if total == 1:
         tipo = "Mini"
-    elif total_personas == 2:
-        tipo = "Duplex"
-    elif total_personas == 3:
+    elif total == 2:
+        tipo = "Duo"
+    elif total == 3:
         tipo = "Trio"
     else:
         tipo = "Grupal"
 
     overwrites = {
-        guild.default_role: discord.PermissionOverwrite(read_messages=False),
-        ctx.author: discord.PermissionOverwrite(read_messages=True)
+        guild.default_role: discord.PermissionOverwrite(read_messages=False)
     }
 
-    for m in miembros:
-        overwrites[m] = discord.PermissionOverwrite(read_messages=True)
+    for p in personas:
+        overwrites[p] = discord.PermissionOverwrite(read_messages=True)
+
+    overwrites[ctx.author] = discord.PermissionOverwrite(read_messages=True)
 
     canal = await guild.create_text_channel(nombre, overwrites=overwrites)
 
-    # Embed dentro del canal
+    miembros_ids = [m.id for m in miembros]
+
+    cursor.execute("""
+    INSERT INTO boxes(nombre,canal_id,dueno_id,staff_id,miembros,inicio,fin,avisado)
+    VALUES(?,?,?,?,?,?,?,0)
+    """,(nombre, canal.id, dueno.id, ctx.author.id, str(miembros_ids), inicio, fin))
+
+    conn.commit()
+
+    box_id = cursor.lastrowid
+
     embed = discord.Embed(
-        title="🌙 Little Box",
-        color=discord.Color.purple()
+        title="🛏 Box creada",
+        color=discord.Color.green()
     )
 
-    embed.add_field(name="Dueño/a", value=ctx.author.mention, inline=False)
-    embed.add_field(name="Tipo", value=tipo, inline=False)
-    embed.add_field(name="Adquisición", value=fecha_inicio.strftime("%d/%m/%Y %H:%M"), inline=False)
-    embed.add_field(name="Expiración", value=f"{fecha_fin.strftime('%d/%m/%Y %H:%M')} (en {DURACION_DIAS} días)", inline=False)
-    embed.set_footer(text=f"ID de Little Box: {canal.id}")
+    embed.add_field(name="ID", value=box_id)
+    embed.add_field(name="Nombre", value=nombre)
+    embed.add_field(name="Tipo", value=tipo)
+    embed.add_field(name="Dueño", value=dueno.mention)
+    embed.add_field(name="Staff", value=ctx.author.mention)
+    embed.add_field(name="Expira", value=fin.strftime("%d/%m/%Y"))
 
-    mensaje = await canal.send(embed=embed)
-    await mensaje.pin()
+    await canal.send(embed=embed)
 
-    # Guardar en JSON
-    boxes = cargar_boxes()
+    await log(guild, f"📦 **BOX CREADA**\nNombre: {nombre}\nDueño: {dueno.mention}\nStaff: {ctx.author.mention}\nTipo: {tipo}")
 
-    boxes[str(canal.id)] = {
-        "dueno_id": ctx.author.id,
-        "miembros": [m.id for m in miembros],
-        "expira": fecha_fin.strftime("%Y-%m-%d %H:%M:%S")
-    }
+# ---------------- VER BOXES ----------------
 
-    guardar_boxes(boxes)
+@bot.command()
+async def boxes(ctx):
 
-    await ctx.send(f"✅ Little Box creada correctamente: {canal.mention}")
+    cursor.execute("SELECT id,nombre,fin FROM boxes")
+    data = cursor.fetchall()
 
-    # Log
-    log_channel = bot.get_channel(LOG_CHANNEL_ID)
-    if log_channel:
-        log_embed = discord.Embed(title="📦 Little Box creada", color=discord.Color.green())
-        log_embed.add_field(name="Nombre", value=nombre)
-        log_embed.add_field(name="Tipo", value=tipo)
-        log_embed.add_field(name="Staff", value=ctx.author.mention)
-        log_embed.add_field(name="Expira", value=fecha_fin.strftime("%d/%m/%Y %H:%M"))
-        log_embed.set_footer(text=f"ID: {canal.id}")
-        await log_channel.send(embed=log_embed)
+    if not data:
+        await ctx.send("No hay boxes activas")
+        return
 
-# ==========================
-# RENOVACIÓN
-# ==========================
+    embed = discord.Embed(title="📦 Boxes activas")
+
+    for b in data:
+
+        fin = datetime.strptime(b[2], "%Y-%m-%d %H:%M:%S.%f")
+        dias = (fin - datetime.now()).days
+
+        embed.add_field(
+            name=f"ID {b[0]} | {b[1]}",
+            value=f"Expira en {dias} días",
+            inline=False
+        )
+
+    await ctx.send(embed=embed)
+
+# ---------------- INFO BOX ----------------
+
+@bot.command()
+async def boxinfo(ctx, id_box: int):
+
+    cursor.execute("SELECT * FROM boxes WHERE id=?", (id_box,))
+    data = cursor.fetchone()
+
+    if not data:
+        await ctx.send("Box no encontrada")
+        return
+
+    guild = ctx.guild
+
+    dueno = guild.get_member(data[3])
+    staff = guild.get_member(data[4])
+
+    embed = discord.Embed(title=f"📦 Box {data[1]}")
+
+    embed.add_field(name="ID", value=data[0])
+    embed.add_field(name="Dueño", value=dueno.mention)
+    embed.add_field(name="Staff", value=staff.mention)
+    embed.add_field(name="Creación", value=data[6])
+    embed.add_field(name="Expira", value=data[7])
+
+    await ctx.send(embed=embed)
+
+# ---------------- RENOVAR ----------------
 
 @bot.command()
 @commands.has_permissions(manage_channels=True)
-async def renovacion(ctx, box_id: int):
+async def renovar(ctx, id_box: int):
 
-    boxes = cargar_boxes()
+    cursor.execute("SELECT fin,nombre FROM boxes WHERE id=?", (id_box,))
+    data = cursor.fetchone()
 
-    if str(box_id) not in boxes:
-        await ctx.send("❌ No existe una Little Box con ese ID.")
+    if not data:
+        await ctx.send("Box no encontrada")
         return
 
-    fecha_actual = datetime.strptime(boxes[str(box_id)]["expira"], "%Y-%m-%d %H:%M:%S")
-    nueva_fecha = fecha_actual + timedelta(days=DURACION_DIAS)
+    nueva = datetime.strptime(data[0], "%Y-%m-%d %H:%M:%S.%f") + timedelta(days=DURACION_DIAS)
 
-    boxes[str(box_id)]["expira"] = nueva_fecha.strftime("%Y-%m-%d %H:%M:%S")
-    guardar_boxes(boxes)
+    cursor.execute("UPDATE boxes SET fin=?,avisado=0 WHERE id=?", (nueva,id_box))
+    conn.commit()
 
-    canal = bot.get_channel(box_id)
+    await ctx.send("Box renovada")
+
+    await log(ctx.guild, f"🔄 **BOX RENOVADA**\nBox: {data[1]}\nStaff: {ctx.author.mention}")
+
+# ---------------- AÑADIR MIEMBRO ----------------
+
+@bot.command()
+async def addbox(ctx, id_box: int, miembro: discord.Member):
+
+    cursor.execute("SELECT canal_id FROM boxes WHERE id=?", (id_box,))
+    data = cursor.fetchone()
+
+    canal = bot.get_channel(data[0])
+
+    await canal.set_permissions(miembro, read_messages=True)
+
+    await ctx.send("Miembro añadido")
+
+# ---------------- REMOVER MIEMBRO ----------------
+
+@bot.command()
+async def removebox(ctx, id_box: int, miembro: discord.Member):
+
+    cursor.execute("SELECT canal_id FROM boxes WHERE id=?", (id_box,))
+    data = cursor.fetchone()
+
+    canal = bot.get_channel(data[0])
+
+    await canal.set_permissions(miembro, overwrite=None)
+
+    await ctx.send("Miembro removido")
+
+# ---------------- ELIMINAR BOX ----------------
+
+@bot.command()
+async def deletebox(ctx, id_box: int):
+
+    cursor.execute("SELECT canal_id,nombre FROM boxes WHERE id=?", (id_box,))
+    data = cursor.fetchone()
+
+    canal = bot.get_channel(data[0])
 
     if canal:
-        await canal.send("🌸 ¡Holi! La Little Box ha sido extendida por 20 días.")
+        await canal.delete()
 
-    await ctx.send("✅ Renovación aplicada correctamente.")
+    cursor.execute("DELETE FROM boxes WHERE id=?", (id_box,))
+    conn.commit()
 
-# ==========================
-# VERIFICAR EXPIRACIONES
-# ==========================
+    await ctx.send("Box eliminada")
 
-@tasks.loop(minutes=10)
-async def verificar_expiraciones():
+# ---------------- REVISAR EXPIRACIÓN ----------------
 
-    boxes = cargar_boxes()
+@tasks.loop(hours=1)
+async def revisar_boxes():
+
     ahora = datetime.now()
-    eliminadas = []
 
-    for box_id, data in boxes.items():
-        fecha_expira = datetime.strptime(data["expira"], "%Y-%m-%d %H:%M:%S")
+    cursor.execute("SELECT id,nombre,canal_id,fin,avisado FROM boxes")
+    data = cursor.fetchall()
 
-        if ahora >= fecha_expira:
-            canal = bot.get_channel(int(box_id))
+    for b in data:
+
+        fin = datetime.strptime(b[3], "%Y-%m-%d %H:%M:%S.%f")
+        restante = fin - ahora
+
+        guild = bot.guilds[0]
+
+        if restante.days <= 3 and b[4] == 0:
+
+            await log(guild, f"⚠ La box **{b[1]}** vence en {restante.days} días")
+
+            cursor.execute("UPDATE boxes SET avisado=1 WHERE id=?", (b[0],))
+            conn.commit()
+
+        if ahora >= fin:
+
+            canal = bot.get_channel(b[2])
+
             if canal:
                 await canal.delete()
-            eliminadas.append(box_id)
 
-    for box_id in eliminadas:
-        del boxes[box_id]
+            cursor.execute("DELETE FROM boxes WHERE id=?", (b[0],))
+            conn.commit()
 
-    guardar_boxes(boxes)
+            await log(guild, f"⛔ Box **{b[1]}** eliminada por expiración")
 
-@bot.event
-async def on_ready():
-    print(f"Bot conectado como {bot.user}")
-    verificar_expiraciones.start()
+# ---------------- START ----------------
 
+keep_alive()
 bot.run(TOKEN)
