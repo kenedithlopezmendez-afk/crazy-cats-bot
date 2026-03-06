@@ -55,8 +55,13 @@ async def log(guild, texto):
 
     log_channel = bot.get_channel(LOG_CHANNEL_ID)
 
-if log_channel:
-    await log_channel.send(embed=embed)
+    if log_channel:
+        embed = discord.Embed(
+            description=texto,
+            color=discord.Color.orange()
+        )
+
+        await log_channel.send(embed=embed)
 # ---------------- BOT READY ----------------
 
 @bot.event
