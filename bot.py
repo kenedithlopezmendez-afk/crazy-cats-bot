@@ -33,6 +33,9 @@ bot = commands.Bot(command_prefix="?", intents=intents)
 conn = psycopg2.connect(DATABASE_URL)
 cursor = conn.cursor()
 
+cursor.execute("ALTER TABLE boxes ADD COLUMN IF NOT EXISTS tipo TEXT;")
+
+conn.commit()
 
 async def enviar_log(guild, titulo, descripcion):
 
