@@ -37,15 +37,15 @@ cursor = conn.cursor()
 
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS boxes(
-id INTEGER PRIMARY KEY AUTOINCREMENT,
+id SERIAL PRIMARY KEY,
 nombre TEXT,
-canal_id INTEGER,
-dueno_id INTEGER,
-staff_id INTEGER,
+canal_id BIGINT,
+dueno_id BIGINT,
+staff_id BIGINT,
 miembros TEXT,
-inicio TEXT,
-fin TEXT,
-avisado INTEGER
+inicio TIMESTAMP,
+fin TIMESTAMP,
+avisado BIGINT
 )
 """)
 
