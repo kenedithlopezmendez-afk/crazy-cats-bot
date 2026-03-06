@@ -1,7 +1,7 @@
 import discord
 from discord.ext import commands, tasks
 from flask import Flask
-import sqlite3
+import psycopg2
 from datetime import datetime, timedelta
 import os
 import threading
@@ -30,7 +30,9 @@ def keep_alive():
 
 # ---------------- BASE DE DATOS ----------------
 
-conn = sqlite3.connect("boxes.db")
+DATABASE_URL = os.environ["DATABASE_URL"]
+
+conn = psycopg2.connect(DATABASE_URL)
 cursor = conn.cursor()
 
 cursor.execute("""
