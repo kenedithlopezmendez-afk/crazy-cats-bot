@@ -8,7 +8,7 @@ import threading
 
 TOKEN = os.environ["TOKEN"]
 DURACION_DIAS = 20
-LOG_CHANNEL = "box-logs"
+LOG_CHANNEL_ID = 1477110955669323899
 
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="!", intents=intents)
@@ -53,15 +53,10 @@ conn.commit()
 
 async def log(guild, texto):
 
-    canal = discord.utils.get(guild.text_channels, name=LOG_CHANNEL)
+    log_channel = bot.get_channel(LOG_CHANNEL_ID)
 
-    if canal:
-        embed = discord.Embed(
-            description=texto,
-            color=discord.Color.orange()
-        )
-        await canal.send(embed=embed)
-
+if log_channel:
+    await log_channel.send(embed=embed)
 # ---------------- BOT READY ----------------
 
 @bot.event
