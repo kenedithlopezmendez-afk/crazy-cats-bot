@@ -1,5 +1,11 @@
+import discord
+from discord.ext import commands
 from flask import Flask
 from threading import Thread
+import os
+
+# -------- FLASK PARA RENDER --------
+
 app = Flask('')
 
 @app.route('/')
@@ -12,12 +18,31 @@ def run():
 def keep_alive():
     t = Thread(target=run)
     t.start()
+
+# -------- CONFIG BOT --------
+
+TOKEN = os.environ['TOKEN']
+
+intents = discord.Intents.default()
+intents.message_content = True
+
+bot = commands.Bot(
+    command_prefix="?",
+    intents=intents
+)
+
+# -------- IDs --------
+
+CANAL_AVENTURAS = 1502421010274844762
+ROL_AVENTURA = 1502421341394042880
+
+# -------- BOT ONLINE --------
+
+@bot.event
+async def on_ready():
+    print(f'✅ Bot conectado como {bot.user}')
+
 # -------- DETECTOR DE SALAS --------
-
-CANAL_AVENTURAS = 123456789123456789
-ROL_AVENTURA = 987654321987654321
-
-bot = commands.Bot(command_prefix="?", intents=intents)
 
 @bot.event
 async def on_message(message):
@@ -81,5 +106,11 @@ async def on_message(message):
                 break
 
     await bot.process_commands(message)
-    keep_alive()
-    bot.run(TOKEN)
+
+# -------- KEEP ALIVE --------
+
+keep_alive()
+
+# -------- INICIAR BOT --------
+
+bot.run(TOKEN)
