@@ -1,9 +1,10 @@
 from flask import Flask
 from threading import Thread
+bot = commands.Bot(command_prefix="?", intents=intents)
 # -------- DETECTOR DE SALAS --------
 
-CANAL_AVENTURAS = 1502421010274844762
-ROL_AVENTURA = 1502421341394042880
+CANAL_AVENTURAS = 123456789123456789
+ROL_AVENTURA = 987654321987654321
 
 @bot.event
 async def on_message(message):
@@ -12,8 +13,8 @@ async def on_message(message):
     if message.author == bot.user:
         return
 
-    # Solo detectar mensajes de otros bots
-    if message.author.bot:
+    # Detectar SOLO mensajes de Nekotina
+    if message.author.id == 270904126974590976:
 
         contenido = message.content.lower()
 
