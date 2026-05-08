@@ -54,8 +54,6 @@ async def on_message(message):
     # Detectar SOLO mensajes de Nekotina
     if message.author.id == 270904126974590976:
 
-        contenido = message.content.lower()
-
         salas = {
             "magma": {
                 "titulo": "🌋 Sala de Magma Detectada",
@@ -76,37 +74,47 @@ async def on_message(message):
             }
         }
 
-        for palabra, datos in salas.items():
+        # LEER EMBEDS
+        for embed in message.embeds:
 
-            if palabra in contenido:
+            texto = ""
 
-                canal = bot.get_channel(CANAL_AVENTURAS)
+            if embed.title:
+                texto += embed.title.lower()
 
-                embed = discord.Embed(
-                    title=datos["titulo"],
-                    description=datos["descripcion"],
-                    color=datos["color"]
-                )
+            if embed.description:
+                texto += embed.description.lower()
 
-                embed.add_field(
-                    name="📍 Detectado en",
-                    value=message.channel.mention,
-                    inline=False
-                )
+            for palabra, datos in salas.items():
 
-                embed.set_footer(
-                    text="Sistema de Detección"
-                )
+                if palabra in texto:
 
-                await canal.send(
-                    f"<@&{ROL_AVENTURA}>",
-                    embed=embed
-                )
+                    canal = bot.get_channel(CANAL_AVENTURAS)
 
-                break
+                    nuevo_embed = discord.Embed(
+                        title=datos["titulo"],
+                        description=datos["descripcion"],
+                        color=datos["color"]
+                    )
+
+                    nuevo_embed.add_field(
+                        name="📍 Detectado en",
+                        value=message.channel.mention,
+                        inline=False
+                    )
+
+                    nuevo_embed.set_footer(
+                        text="Sistema de Detección"
+                    )
+
+                    await canal.send(
+                        f"<@&{ROL_AVENTURA}>",
+                        embed=nuevo_embed
+                    )
+
+                    break
 
     await bot.process_commands(message)
-
 # -------- KEEP ALIVE --------
 
 keep_alive()
