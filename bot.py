@@ -61,13 +61,13 @@ async def on_message(message):
                 "color": 0xFF5500
             },
 
-            "outlands": {
+            "tierras remotas": {
                 "titulo": "🏝 Sala de Outlands Detectada",
                 "descripcion": "¡Una aventura de Outlands ha aparecido!",
                 "color": 0x00AAFF
             },
 
-            "whispering": {
+            "arboleda susurrante": {
                 "titulo": "🌲 Sala de Whispering Detectada",
                 "descripcion": "¡El bosque susurra... aventura disponible!",
                 "color": 0x55FF55
