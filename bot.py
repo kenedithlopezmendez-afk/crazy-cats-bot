@@ -1,10 +1,23 @@
 from flask import Flask
 from threading import Thread
-bot = commands.Bot(command_prefix="?", intents=intents)
+app = Flask('')
+
+@app.route('/')
+def home():
+    return "Bot activo"
+
+def run():
+    app.run(host='0.0.0.0', port=10000)
+
+def keep_alive():
+    t = Thread(target=run)
+    t.start()
 # -------- DETECTOR DE SALAS --------
 
 CANAL_AVENTURAS = 123456789123456789
 ROL_AVENTURA = 987654321987654321
+
+bot = commands.Bot(command_prefix="?", intents=intents)
 
 @bot.event
 async def on_message(message):
