@@ -52,7 +52,7 @@ async def on_message(message):
         return
 
     # Detectar SOLO mensajes de Nekotina
-    if message.author.id == 270904126974590976:
+    if message.author.id == 429457053791158281:
 
         salas = {
             "magma": {
