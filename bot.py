@@ -67,13 +67,13 @@ async def on_message(message):
         return
 
     salas = {
-        ":nk: Sala de Aventura: :nk: Magma": {
+        "magma": {
             "titulo": "🌋 Sala de Magma Detectada",
             "descripcion": "¡Una nueva sala de aventura de magma está abierta! ✨",
             "color": 0xFF5500
         },
 
-        ":nk: Sala de Aventura: :nk: Outlands": {
+        "Outlands": {
             "titulo": "🏝 Sala de Outlands Detectada",
             "descripcion": "¡Una nueva aventura de Outlands está disponible! ✨",
             "color": 0x00AAFF
@@ -107,7 +107,7 @@ async def on_message(message):
     # Detectar aventuras
     for palabra, datos in salas.items():
 
-        if "Sala de Aventura:" in texto and palabra in texto:
+        if "¡Una nueva sala de aventura está abierta!" in texto and palabra in texto:
 
             canal = bot.get_channel(CANAL_AVENTURAS)
 
