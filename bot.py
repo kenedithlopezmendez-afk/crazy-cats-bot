@@ -54,45 +54,49 @@ async def on_message(message):
     if message.author == bot.user:
         return
 
-    # SOLO detectar en este canal
+    # SOLO detectar en el canal específico
     if message.channel.id != CANAL_DETECCION:
         return
 
     # SOLO detectar mensajes de Nekotina
-    if message.author.id != 270904126974590976:
+    if message.author.id != 429457053791158281:
         return
 
+    # Aventuras detectables
     salas = {
-        "Sala de aventura: Magma": {
+        "sala de aventura: 🌋 magma": {
             "titulo": "🌋 Sala de Magma Detectada",
-            "descripcion": "¡Prepara tus mascotas y entra en la zona de magma!",
+            "descripcion": "¡Una nueva sala de aventura de magma está abierta! ✨",
             "color": 0xFF5500
         },
 
-        "Sala de aventura: outlands": {
+        "sala de aventura: 🧝 outlands": {
             "titulo": "🏝 Sala de Outlands Detectada",
-            "descripcion": "¡Una aventura de Outlands ha aparecido!",
+            "descripcion": "¡Una nueva sala de aventura de Outlands está abierta! ✨",
             "color": 0x00AAFF
         },
 
-        "whispering": {
+        "sala de aventura: 🌲 whispering": {
             "titulo": "🌲 Sala de Whispering Detectada",
-            "descripcion": "¡El bosque susurra... aventura disponible!",
+            "descripcion": "¡Una nueva sala de Whispering está abierta! ✨",
             "color": 0x55FF55
         }
     }
 
-    # Leer embeds
+    # Leer embeds de Nekotina
     for embed in message.embeds:
 
         texto = ""
 
+        # Leer título
         if embed.title:
             texto += embed.title.lower()
 
+        # Leer descripción
         if embed.description:
             texto += embed.description.lower()
 
+        # Detectar aventuras
         for palabra, datos in salas.items():
 
             if palabra in texto:
@@ -112,7 +116,7 @@ async def on_message(message):
                 )
 
                 nuevo_embed.set_footer(
-                    text="Sistema de deteccion Crazy Cats"
+                    text="Crazy Tracker • Sistema de Aventuras"
                 )
 
                 await canal.send(
