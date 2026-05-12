@@ -39,18 +39,16 @@ ROL_AVENTURA = 1436361900215500870
 # Canal donde Nekotina manda aventuras
 CANAL_DETECCION = 1436358970284572723
 
-# -------- BOT ONLINE --------
-
 @bot.event
 async def on_ready():
     print(f'✅ Bot conectado como {bot.user}')
-
-# -------- BOT DETECCION ------
 
 @bot.event
 async def on_message(message):
 
     print("MENSAJE DETECTADO")
+
+    await bot.process_commands(message)
 
 # -------- KEEP ALIVE --------
 
