@@ -50,6 +50,10 @@ async def on_ready():
 @bot.event
 async def on_message(message):
 
+    print("MENSAJE DETECTADO")
+    print(message.author)
+    print(message.content)
+
     # Ignorar mensajes del propio bot
     if message.author == bot.user:
         return
