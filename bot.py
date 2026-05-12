@@ -45,7 +45,7 @@ CANAL_DETECCION = 1436358970284572723
 async def on_ready():
     print(f'✅ Bot conectado como {bot.user}')
 
-# -------- DETECTOR DE SALAS --------
+# -------- BOT DETECCION ------
 
 @bot.event
 async def on_message(message):
@@ -54,70 +54,76 @@ async def on_message(message):
     if message.author == bot.user:
         return
 
-    # Detectar SOLO mensajes de Nekotina
-    if message.author.id == 429457053791158281:
+    # SOLO detectar en este canal
+    if message.channel.id != CANAL_DETECCION:
+        return
 
-        salas = {
-            "magma": {
-                "titulo": "🌋 Sala de Magma Detectada",
-                "descripcion": "¡Prepara tus mascotas y entra en la zona de magma!",
-                "color": 0xFF5500
-            },
+    # SOLO detectar mensajes de Nekotina
+    if message.author.id != 270904126974590976:
+        return
 
-            "tierras remotas": {
-                "titulo": "🏝 Sala de Outlands Detectada",
-                "descripcion": "¡Una aventura de Outlands ha aparecido!",
-                "color": 0x00AAFF
-            },
+    salas = {
+        "Sala de aventura: Magma": {
+            "titulo": "🌋 Sala de Magma Detectada",
+            "descripcion": "¡Prepara tus mascotas y entra en la zona de magma!",
+            "color": 0xFF5500
+        },
 
-            "arboleda susurrante": {
-                "titulo": "🌲 Sala de Whispering Detectada",
-                "descripcion": "¡El bosque susurra... aventura disponible!",
-                "color": 0x55FF55
-            }
+        "Sala de aventura: outlands": {
+            "titulo": "🏝 Sala de Outlands Detectada",
+            "descripcion": "¡Una aventura de Outlands ha aparecido!",
+            "color": 0x00AAFF
+        },
+
+        "whispering": {
+            "titulo": "🌲 Sala de Whispering Detectada",
+            "descripcion": "¡El bosque susurra... aventura disponible!",
+            "color": 0x55FF55
         }
+    }
 
-        # LEER EMBEDS
-        for embed in message.embeds:
+    # Leer embeds
+    for embed in message.embeds:
 
-            texto = ""
+        texto = ""
 
-            if embed.title:
-                texto += embed.title.lower()
+        if embed.title:
+            texto += embed.title.lower()
 
-            if embed.description:
-                texto += embed.description.lower()
+        if embed.description:
+            texto += embed.description.lower()
 
-            for palabra, datos in salas.items():
+        for palabra, datos in salas.items():
 
-                if palabra in texto:
+            if palabra in texto:
 
-                    canal = bot.get_channel(CANAL_AVENTURAS)
+                canal = bot.get_channel(CANAL_AVENTURAS)
 
-                    nuevo_embed = discord.Embed(
-                        title=datos["titulo"],
-                        description=datos["descripcion"],
-                        color=datos["color"]
-                    )
+                nuevo_embed = discord.Embed(
+                    title=datos["titulo"],
+                    description=datos["descripcion"],
+                    color=datos["color"]
+                )
 
-                    nuevo_embed.add_field(
-                        name="📍 Detectado en",
-                        value=message.channel.mention,
-                        inline=False
-                    )
+                nuevo_embed.add_field(
+                    name="📍 Detectado en",
+                    value=message.channel.mention,
+                    inline=False
+                )
 
-                    nuevo_embed.set_footer(
-                        text="Sistema de Detección Crazy Cats"
-                    )
+                nuevo_embed.set_footer(
+                    text="Sistema de deteccion Crazy Cats"
+                )
 
-                    await canal.send(
-                        f"<@&{ROL_AVENTURA}>",
-                        embed=nuevo_embed
-                    )
+                await canal.send(
+                    f"<@&{ROL_AVENTURA}>",
+                    embed=nuevo_embed
+                )
 
-                    break
+                return
 
     await bot.process_commands(message)
+
 # -------- KEEP ALIVE --------
 
 keep_alive()
