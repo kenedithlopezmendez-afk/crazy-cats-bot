@@ -103,7 +103,7 @@ async def on_message(message):
     # Detectar aventuras
     for palabra, datos in salas.items():
 
-        if "sala de aventura" in texto and palabra in texto:
+        if "Sala de Aventura:" in texto and palabra in texto:
 
             canal = bot.get_channel(CANAL_AVENTURAS)
 
