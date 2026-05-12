@@ -64,25 +64,24 @@ async def on_message(message):
 
     # Aventuras detectables
     salas = {
-        "sala de aventura: 🌋 magma": {
-            "titulo": "🌋 Sala de Magma Detectada",
-            "descripcion": "¡Una nueva sala de aventura de magma está abierta! ✨",
-            "color": 0xFF5500
-        },
+    "magma": {
+        "titulo": "🌋 Sala de Magma Detectada",
+        "descripcion": "¡Una nueva sala de aventura de magma está abierta! ✨",
+        "color": 0xFF5500
+    },
 
-        "sala de aventura: 🧝 outlands": {
-            "titulo": "🏝 Sala de Outlands Detectada",
-            "descripcion": "¡Una nueva sala de aventura de Outlands está abierta! ✨",
-            "color": 0x00AAFF
-        },
+    "outlands": {
+        "titulo": "🏝 Sala de Outlands Detectada",
+        "descripcion": "¡Una nueva aventura de Outlands está disponible! ✨",
+        "color": 0x00AAFF
+    },
 
-        "sala de aventura: 🌲 whispering": {
-            "titulo": "🌲 Sala de Whispering Detectada",
-            "descripcion": "¡Una nueva sala de Whispering está abierta! ✨",
-            "color": 0x55FF55
-        }
+    "whispering": {
+        "titulo": "🌲 Sala de Whispering Detectada",
+        "descripcion": "¡Una nueva sala de Whispering está abierta! ✨",
+        "color": 0x55FF55
     }
-
+}
     # Leer embeds de Nekotina
     for embed in message.embeds:
 
@@ -99,7 +98,7 @@ async def on_message(message):
         # Detectar aventuras
         for palabra, datos in salas.items():
 
-            if palabra in texto:
+            if "sala de aventura" in texto and palabra in texto:
 
                 canal = bot.get_channel(CANAL_AVENTURAS)
 
