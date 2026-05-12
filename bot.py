@@ -63,13 +63,13 @@ async def on_message(message):
         return
 
     salas = {
-        "magma": {
+        ":nk: Sala de Aventura: :nk: Magma": {
             "titulo": "🌋 Sala de Magma Detectada",
             "descripcion": "¡Una nueva sala de aventura de magma está abierta! ✨",
             "color": 0xFF5500
         },
 
-        "outlands": {
+        ":nk: Sala de Aventura: :nk: Outlands": {
             "titulo": "🏝 Sala de Outlands Detectada",
             "descripcion": "¡Una nueva aventura de Outlands está disponible! ✨",
             "color": 0x00AAFF
