@@ -54,7 +54,7 @@ async def on_message(message):
     if message.author == bot.user:
         return
 
-    # SOLO detectar en el canal específico
+    # SOLO detectar en canal específico
     if message.channel.id != CANAL_DETECCION:
         return
 
@@ -62,75 +62,75 @@ async def on_message(message):
     if message.author.id != 429457053791158281:
         return
 
-    # Aventuras detectables
     salas = {
-    "magma": {
-        "titulo": "🌋 Sala de Magma Detectada",
-        "descripcion": "¡Una nueva sala de aventura de magma está abierta! ✨",
-        "color": 0xFF5500
-    },
+        "magma": {
+            "titulo": "🌋 Sala de Magma Detectada",
+            "descripcion": "¡Una nueva sala de aventura de magma está abierta! ✨",
+            "color": 0xFF5500
+        },
 
-    "outlands": {
-        "titulo": "🏝 Sala de Outlands Detectada",
-        "descripcion": "¡Una nueva aventura de Outlands está disponible! ✨",
-        "color": 0x00AAFF
-    },
+        "outlands": {
+            "titulo": "🏝 Sala de Outlands Detectada",
+            "descripcion": "¡Una nueva aventura de Outlands está disponible! ✨",
+            "color": 0x00AAFF
+        },
 
-    "whispering": {
-        "titulo": "🌲 Sala de Whispering Detectada",
-        "descripcion": "¡Una nueva sala de Whispering está abierta! ✨",
-        "color": 0x55FF55
+        "whispering": {
+            "titulo": "🌲 Sala de Whispering Detectada",
+            "descripcion": "¡Una nueva sala de Whispering está abierta! ✨",
+            "color": 0x55FF55
+        }
     }
-}
+
     # Leer embeds de Nekotina
-for embed in message.embeds:
+    for embed in message.embeds:
 
-    texto = ""
+        texto = ""
 
-    # Leer título
-    if embed.title:
-        texto += embed.title.lower() + " "
+        # Leer título
+        if embed.title:
+            texto += embed.title.lower() + " "
 
-    # Leer descripción
-    if embed.description:
-        texto += embed.description.lower() + " "
+        # Leer descripción
+        if embed.description:
+            texto += embed.description.lower() + " "
 
-    # Leer fields/campos
-    for field in embed.fields:
-        texto += field.name.lower() + " "
-        texto += field.value.lower() + " "
+        # Leer fields/campos
+        for field in embed.fields:
+            texto += field.name.lower() + " "
+            texto += field.value.lower() + " "
 
-    print(texto)
+        print(texto)
 
-    # Detectar aventuras
-    for palabra, datos in salas.items():
+        # Detectar aventuras
+        for palabra, datos in salas.items():
 
-        if "sala de aventura" in texto and palabra in texto:
+            if "sala de aventura" in texto and palabra in texto:
 
-            canal = bot.get_channel(CANAL_AVENTURAS)
+                canal = bot.get_channel(CANAL_AVENTURAS)
 
-            nuevo_embed = discord.Embed(
-                title=datos["titulo"],
-                description=datos["descripcion"],
-                color=datos["color"]
-            )
+                nuevo_embed = discord.Embed(
+                    title=datos["titulo"],
+                    description=datos["descripcion"],
+                    color=datos["color"]
+                )
 
-            nuevo_embed.add_field(
-                name="📍 Detectado en",
-                value=message.channel.mention,
-                inline=False
-            )
+                nuevo_embed.add_field(
+                    name="📍 Detectado en",
+                    value=message.channel.mention,
+                    inline=False
+                )
 
-            nuevo_embed.set_footer(
-                text="Crazy Tracker • Sistema de Aventuras"
-            )
+                nuevo_embed.set_footer(
+                    text="Crazy Tracker • Sistema de Aventuras"
+                )
 
-            await canal.send(
-                f"<@&{ROL_AVENTURA}>",
-                embed=nuevo_embed
-            )
+                await canal.send(
+                    f"<@&{ROL_AVENTURA}>",
+                    embed=nuevo_embed
+                )
 
-            return
+                return
 
     await bot.process_commands(message)
 
