@@ -83,47 +83,54 @@ async def on_message(message):
     }
 }
     # Leer embeds de Nekotina
-    for embed in message.embeds:
+for embed in message.embeds:
 
-        texto = ""
+    texto = ""
 
-        # Leer título
-        if embed.title:
-            texto += embed.title.lower()
+    # Leer título
+    if embed.title:
+        texto += embed.title.lower() + " "
 
-        # Leer descripción
-        if embed.description:
-            texto += embed.description.lower()
+    # Leer descripción
+    if embed.description:
+        texto += embed.description.lower() + " "
 
-        # Detectar aventuras
-        for palabra, datos in salas.items():
+    # Leer fields/campos
+    for field in embed.fields:
+        texto += field.name.lower() + " "
+        texto += field.value.lower() + " "
 
-            if "sala de aventura" in texto and palabra in texto:
+    print(texto)
 
-                canal = bot.get_channel(CANAL_AVENTURAS)
+    # Detectar aventuras
+    for palabra, datos in salas.items():
 
-                nuevo_embed = discord.Embed(
-                    title=datos["titulo"],
-                    description=datos["descripcion"],
-                    color=datos["color"]
-                )
+        if "sala de aventura" in texto and palabra in texto:
 
-                nuevo_embed.add_field(
-                    name="📍 Detectado en",
-                    value=message.channel.mention,
-                    inline=False
-                )
+            canal = bot.get_channel(CANAL_AVENTURAS)
 
-                nuevo_embed.set_footer(
-                    text="Crazy Tracker • Sistema de Aventuras"
-                )
+            nuevo_embed = discord.Embed(
+                title=datos["titulo"],
+                description=datos["descripcion"],
+                color=datos["color"]
+            )
 
-                await canal.send(
-                    f"<@&{ROL_AVENTURA}>",
-                    embed=nuevo_embed
-                )
+            nuevo_embed.add_field(
+                name="📍 Detectado en",
+                value=message.channel.mention,
+                inline=False
+            )
 
-                return
+            nuevo_embed.set_footer(
+                text="Crazy Tracker • Sistema de Aventuras"
+            )
+
+            await canal.send(
+                f"<@&{ROL_AVENTURA}>",
+                embed=nuevo_embed
+            )
+
+            return
 
     await bot.process_commands(message)
 
