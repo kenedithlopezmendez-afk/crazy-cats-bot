@@ -33,8 +33,11 @@ bot = commands.Bot(
 
 # -------- IDs --------
 
-CANAL_AVENTURAS = 1502421010274844762
-ROL_AVENTURA = 1502421341394042880
+CANAL_AVENTURAS = 1436358970284572723
+ROL_AVENTURA = 1436361900215500870
+
+# Canal donde Nekotina manda aventuras
+CANAL_DETECCION = 1436358970284572723
 
 # -------- BOT ONLINE --------
 
@@ -104,7 +107,7 @@ async def on_message(message):
                     )
 
                     nuevo_embed.set_footer(
-                        text="Sistema de Detección"
+                        text="Sistema de Detección Crazy Cats"
                     )
 
                     await canal.send(
