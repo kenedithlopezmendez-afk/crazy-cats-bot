@@ -82,55 +82,53 @@ async def on_message(message):
         }
     }
 
-    # Leer embeds de Nekotina
+    # LEER TODO EL TEXO POSIBLE
+    texto = message.content.lower()
+
+    # Leer embeds
     for embed in message.embeds:
 
-        texto = ""
-
-        # Leer título
         if embed.title:
-            texto += embed.title.lower() + " "
+            texto += " " + embed.title.lower()
 
-        # Leer descripción
         if embed.description:
-            texto += embed.description.lower() + " "
+            texto += " " + embed.description.lower()
 
-        # Leer fields/campos
         for field in embed.fields:
-            texto += field.name.lower() + " "
-            texto += field.value.lower() + " "
+            texto += " " + field.name.lower()
+            texto += " " + field.value.lower()
 
-        print(texto)
+    print(texto)
 
-        # Detectar aventuras
-        for palabra, datos in salas.items():
+    # Detectar aventuras
+    for palabra, datos in salas.items():
 
-            if "sala de aventura" in texto and palabra in texto:
+        if "sala de aventura" in texto and palabra in texto:
 
-                canal = bot.get_channel(CANAL_AVENTURAS)
+            canal = bot.get_channel(CANAL_AVENTURAS)
 
-                nuevo_embed = discord.Embed(
-                    title=datos["titulo"],
-                    description=datos["descripcion"],
-                    color=datos["color"]
-                )
+            nuevo_embed = discord.Embed(
+                title=datos["titulo"],
+                description=datos["descripcion"],
+                color=datos["color"]
+            )
 
-                nuevo_embed.add_field(
-                    name="📍 Detectado en",
-                    value=message.channel.mention,
-                    inline=False
-                )
+            nuevo_embed.add_field(
+                name="📍 Detectado en",
+                value=message.channel.mention,
+                inline=False
+            )
 
-                nuevo_embed.set_footer(
-                    text="Crazy Tracker • Sistema de Aventuras"
-                )
+            nuevo_embed.set_footer(
+                text="Crazy Tracker • Sistema de Aventuras"
+            )
 
-                await canal.send(
-                    f"<@&{ROL_AVENTURA}>",
-                    embed=nuevo_embed
-                )
+            await canal.send(
+                f"<@&{ROL_AVENTURA}>",
+                embed=nuevo_embed
+            )
 
-                return
+            return
 
     await bot.process_commands(message)
 
