@@ -130,49 +130,50 @@ async def on_message(message):
         }
     }
 
-   # =========================================
-   # DETECTAR AVENTURAS
-   # =========================================
+       # =========================================
+    # DETECTAR AVENTURAS
+    # =========================================
 
-   for palabra, datos in salas.items():
+    for palabra, datos in salas.items():
 
-    if (
-        "sala de aventura" in texto
-        and palabra in texto
-    ):
+        if (
+            "sala de aventura" in texto
+            and palabra in texto
+        ):
 
-        canal = bot.get_channel(CANAL_ALERTAS)
+            canal = bot.get_channel(CANAL_ALERTAS)
 
-        if canal:
+            if canal:
 
-            nuevo_embed = discord.Embed(
-                title=datos["titulo"],
-                description=datos["descripcion"],
-                color=datos["color"]
-            )
+                nuevo_embed = discord.Embed(
+                    title=datos["titulo"],
+                    description=datos["descripcion"],
+                    color=datos["color"]
+                )
 
-            # GIF
-            nuevo_embed.set_thumbnail(
-                url=datos["gif"]
-            )
+                # GIF
+                nuevo_embed.set_thumbnail(
+                    url=datos["gif"]
+                )
 
-            nuevo_embed.add_field(
-                name="📍 Canal Detectado",
-                value=message.channel.mention,
-                inline=False
-            )
+                nuevo_embed.add_field(
+                    name="📍 Canal Detectado",
+                    value=message.channel.mention,
+                    inline=False
+                )
 
-            nuevo_embed.set_footer(
-                text="Crazy Tracker • Sistema de Aventuras"
-            )
+                nuevo_embed.set_footer(
+                    text="Crazy Tracker • Sistema de Aventuras"
+                )
 
-            await canal.send(
-                f"<@&{ROL_AVENTURA}>",
-                embed=nuevo_embed
-            )
+                await canal.send(
+                    f"<@&{ROL_AVENTURA}>",
+                    embed=nuevo_embed
+                )
 
-        break
-    await bot.process_commands(message)
+            break    
+
+            await bot.process_commands(message)
 
 # =========================================
 # KEEP ALIVE
