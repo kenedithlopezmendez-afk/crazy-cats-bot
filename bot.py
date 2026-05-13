@@ -78,12 +78,38 @@ async def on_message(message):
     if message.channel.id != CANAL_DETECCION:
         return
 
-    # ======================================
-    # CONVERTIR TODO EL MENSAJE A TEXTO
-    # ======================================
+    print("📩 MENSAJE DETECTADO")
+
+    # =========================================
+    # DEBUG TOTAL
+    # =========================================
+
+    print("Contenido:", message.content)
+    print("Embeds:", len(message.embeds))
+
+    for i, embed in enumerate(message.embeds):
+
+        print(f"\n===== EMBED {i+1} =====")
+
+        print("TITLE:")
+        print(embed.title)
+
+        print("DESCRIPTION:")
+        print(embed.description)
+
+        print("FIELDS:")
+
+        for field in embed.fields:
+            print(field.name)
+            print(field.value)
+
+    # =========================================
+    # TEXTO TOTAL
+    # =========================================
 
     texto = str(message.embeds).lower()
 
+    print("\nTEXTO FINAL:")
     print(texto)
 
     aventuras = {
@@ -112,10 +138,9 @@ async def on_message(message):
 
     for palabra, datos in aventuras.items():
 
-        if (
-            "nueva sala de aventura" in texto
-            and palabra in texto
-        ):
+        if palabra in texto:
+
+            print(f"✅ DETECTADO: {palabra}")
 
             canal = bot.get_channel(CANAL_ALERTAS)
 
@@ -127,24 +152,12 @@ async def on_message(message):
                     color=datos["color"]
                 )
 
-                embed.set_thumbnail(
-                    url=datos["gif"]
-                )
+                embed.set_thumbnail(url=datos["gif"])
 
                 embed.add_field(
-                    name="🔔 Notificación",
+                    name="🔔 Rol",
                     value=f"<@&{ROL_AVENTURA}>",
                     inline=False
-                )
-
-                embed.add_field(
-                    name="📍 Detectado en",
-                    value=message.channel.mention,
-                    inline=False
-                )
-
-                embed.set_footer(
-                    text="Crazy Tracker • Sistema Automático"
                 )
 
                 await canal.send(embed=embed)
