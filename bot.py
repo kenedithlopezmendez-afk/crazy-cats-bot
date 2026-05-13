@@ -145,10 +145,13 @@ async def on_message(message):
         # "sala"
         # y además magma/outlands/whispering
 
-        if "sala" in texto and palabra in texto:
-
-            canal = bot.get_channel(CANAL_ALERTAS)
-
+        if (
+    (
+        "nueva sala de aventura" in texto
+        or "sala de aventura está abierta" in texto
+    )
+    and palabra in texto
+):
             if canal:
 
                 embed = discord.Embed(
