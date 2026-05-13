@@ -136,8 +136,10 @@ async def on_message(message):
 
     for palabra, datos in salas.items():
 
-        if palabra in texto:
-
+    if (
+        "sala de aventura" in texto
+        and palabra in texto
+    ):
             canal = bot.get_channel(CANAL_ALERTAS)
 
             if canal:
