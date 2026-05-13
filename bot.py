@@ -4,9 +4,9 @@ from flask import Flask
 from threading import Thread
 import os
 
-# =========================================
-# FLASK / KEEP ALIVE PARA RENDER
-# =========================================
+# ==================================================
+# FLASK / KEEP ALIVE
+# ==================================================
 
 app = Flask(__name__)
 
@@ -21,9 +21,9 @@ def keep_alive():
     t = Thread(target=run)
     t.start()
 
-# =========================================
-# CONFIGURACIÓN DEL BOT
-# =========================================
+# ==================================================
+# CONFIG BOT
+# ==================================================
 
 TOKEN = os.environ["TOKEN"]
 
@@ -35,33 +35,33 @@ bot = commands.Bot(
     intents=intents
 )
 
-# =========================================
+# ==================================================
 # IDs
-# =========================================
+# ==================================================
 
-# Canal EXACTO donde Nekotina manda aventuras
+# Canal donde Nekotina manda aventuras
 CANAL_DETECCION = 1436358970284572723
 
-# Canal donde tu bot enviará las alertas
+# Canal donde el bot enviará alertas
 CANAL_ALERTAS = 1436358970284572723
 
 # Rol a mencionar
 ROL_AVENTURA = 1436361900215500870
 
-# ID de Nekotina
+# ID Nekotina
 NEKOTINA_ID = 429457053791158281
 
-# =========================================
+# ==================================================
 # BOT ONLINE
-# =========================================
+# ==================================================
 
 @bot.event
 async def on_ready():
-    print(f"✅ Bot conectado como {bot.user}")
+    print(f"✅ Conectado como {bot.user}")
 
-# =========================================
+# ==================================================
 # DETECTOR DE AVENTURAS
-# =========================================
+# ==================================================
 
 @bot.event
 async def on_message(message):
@@ -70,119 +70,135 @@ async def on_message(message):
     if message.author == bot.user:
         return
 
-    # SOLO mensajes de Nekotina
+    # SOLO detectar Nekotina
     if message.author.id != NEKOTINA_ID:
         return
 
     # SOLO detectar en canal específico
-    # Esto evita detectar privados u otros canales
     if message.channel.id != CANAL_DETECCION:
         return
 
-    # =========================================
+    # ==========================================
     # LEER TODO EL TEXTO POSIBLE
-    # =========================================
+    # ==========================================
 
     texto = message.content.lower()
 
-    # Leer TODOS los embeds
     for embed in message.embeds:
 
-        # Título
         if embed.title:
             texto += " " + embed.title.lower()
 
-        # Descripción
         if embed.description:
             texto += " " + embed.description.lower()
 
-        # Fields/campos
         for field in embed.fields:
             texto += " " + field.name.lower()
             texto += " " + field.value.lower()
 
     print(texto)
 
-    # =========================================
-    # AVENTURAS
-    # =========================================
+    # ==========================================
+    # CONFIG AVENTURAS
+    # ==========================================
 
-    salas = {
+    aventuras = {
+
         "magma": {
             "titulo": "🌋 Sala de Magma Detectada",
-            "descripcion": "¡Una nueva sala de aventura de Magma ha aparecido!",
-            "color": 0xFF5500,
+            "descripcion": (
+                "Una nueva aventura de **Magma** ha aparecido.\n"
+                "¡Prepárense para entrar a la sala! 🔥"
+            ),
+            "color": 0xFF5A1F,
             "gif": "https://media.tenor.com/7lSun5w8XJAAAAAC/lava.gif"
         },
 
         "outlands": {
             "titulo": "🏝 Sala de Outlands Detectada",
-            "descripcion": "¡Una nueva sala de aventura de Outlands ha aparecido!",
-            "color": 0x00AAFF,
+            "descripcion": (
+                "Una nueva aventura de **Outlands** ha aparecido.\n"
+                "¡Hora de explorar nuevas zonas! ✨"
+            ),
+            "color": 0x00BFFF,
             "gif": "https://media.tenor.com/2uyENRmiUt0AAAAC/anime.gif"
         },
 
         "whispering": {
             "titulo": "🌲 Sala de Whispering Detectada",
-            "descripcion": "¡Una nueva sala de aventura de Whispering ha aparecido!",
-            "color": 0x55FF55,
+            "descripcion": (
+                "Una nueva aventura de **Whispering** ha aparecido.\n"
+                "El bosque misterioso espera... 🌲"
+            ),
+            "color": 0x57F287,
             "gif": "https://media.tenor.com/Ye7Sk9i6Ck0AAAAC/forest.gif"
         }
     }
 
-       # =========================================
-    # DETECTAR AVENTURAS
-    # =========================================
+    # ==========================================
+    # DETECCIÓN
+    # ==========================================
 
-    for palabra, datos in salas.items():
+    for palabra, datos in aventuras.items():
 
-        if (
-            "sala de aventura" in texto
-            and palabra in texto
-        ):
+        # Debe contener:
+        # "sala"
+        # y además magma/outlands/whispering
+
+        if "sala" in texto and palabra in texto:
 
             canal = bot.get_channel(CANAL_ALERTAS)
 
             if canal:
 
-                nuevo_embed = discord.Embed(
+                embed = discord.Embed(
                     title=datos["titulo"],
                     description=datos["descripcion"],
                     color=datos["color"]
                 )
 
-                # GIF
-                nuevo_embed.set_thumbnail(
+                # GIF elegante
+                embed.set_thumbnail(
                     url=datos["gif"]
                 )
 
-                nuevo_embed.add_field(
-                    name="📍 Canal Detectado",
-                    value=message.channel.mention,
+                # Ping dentro embed
+                embed.add_field(
+                    name="🔔 Notificación",
+                    value=f"<@&{ROL_AVENTURA}>",
                     inline=False
                 )
 
-                nuevo_embed.set_footer(
-                    text="Crazy Tracker • Sistema de Aventuras"
+                embed.add_field(
+                    name="📍 Detectado en",
+                    value=message.channel.mention,
+                    inline=True
                 )
 
-                await canal.send(
-                    f"<@&{ROL_AVENTURA}>",
-                    embed=nuevo_embed
+                embed.add_field(
+                    name="🤖 Sistema",
+                    value="Crazy Tracker",
+                    inline=True
                 )
 
-            break    
+                embed.set_footer(
+                    text="Crazy Tracker • Sistema Automático"
+                )
 
-            await bot.process_commands(message)
+                await canal.send(embed=embed)
 
-# =========================================
+            break
+
+    await bot.process_commands(message)
+
+# ==================================================
 # KEEP ALIVE
-# =========================================
+# ==================================================
 
 keep_alive()
 
-# =========================================
+# ==================================================
 # INICIAR BOT
-# =========================================
+# ==================================================
 
 bot.run(TOKEN)
