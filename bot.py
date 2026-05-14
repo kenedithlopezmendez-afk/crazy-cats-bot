@@ -66,11 +66,9 @@ async def on_ready():
 @bot.event
 async def on_message(message):
 
-    print("📩 MENSAJE RECIBIDO")
+    print(f"📩 MENSAJE: {message.author} | {message.content}")
 
     await bot.process_commands(message)
-    await bot.process_commands(message)
-
 # ==================================================
 # KEEP ALIVE
 # ==================================================
