@@ -40,16 +40,6 @@ bot = commands.Bot(
 # ==================================================
 
 # Canal donde Nekotina manda aventuras
-CANAL_DETECCION = 1436358970284572723
-
-# Canal donde el bot enviará alertas
-CANAL_ALERTAS = 1436358970284572723
-
-# Rol a mencionar
-ROL_AVENTURA = 1436361900215500870
-
-# ID Nekotina
-NEKOTINA_ID = 429457053791158281
 
 # ==================================================
 # BOT ONLINE
