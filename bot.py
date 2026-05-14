@@ -1,8 +1,10 @@
 import discord
 from discord.ext import commands
+import logging
 from flask import Flask
 from threading import Thread
 import os
+logging.basicConfig(level=logging.INFO)
 
 # ==================================================
 # FLASK / KEEP ALIVE
