@@ -66,7 +66,7 @@ async def on_ready():
 @bot.event
 async def on_message(message):
 
-    # Ignorar propio bot
+    # Ignorar mensajes del propio bot
     if message.author == bot.user:
         return
 
@@ -78,69 +78,61 @@ async def on_message(message):
     if message.channel.id != CANAL_DETECCION:
         return
 
-    print("📩 MENSAJE DETECTADO")
-
     # =========================================
-    # DEBUG TOTAL
-    # =========================================
-
-    print("Contenido:", message.content)
-    print("Embeds:", len(message.embeds))
-
-    for i, embed in enumerate(message.embeds):
-
-        print(f"\n===== EMBED {i+1} =====")
-
-        print("TITLE:")
-        print(embed.title)
-
-        print("DESCRIPTION:")
-        print(embed.description)
-
-        print("FIELDS:")
-
-        for field in embed.fields:
-            print(field.name)
-            print(field.value)
-
-    # =========================================
-    # TEXTO TOTAL
+    # LEER TODO EL EMBED
     # =========================================
 
     texto = str(message.embeds).lower()
 
-    print("\nTEXTO FINAL:")
+    print("========== MENSAJE DETECTADO ==========")
     print(texto)
+
+    # =========================================
+    # CONFIG AVENTURAS
+    # =========================================
 
     aventuras = {
 
         "magma": {
             "titulo": "🌋 Sala de Magma Detectada",
-            "descripcion": "¡Una nueva aventura de Magma ha aparecido!",
-            "color": 0xFF5500,
+            "descripcion": (
+                "🔥 Una aventura de **Magma** ha aparecido.\n"
+                "¡Preparen sus mascotas y entren rápido!"
+            ),
+            "color": 0xFF5A1F,
             "gif": "https://media.tenor.com/7lSun5w8XJAAAAAC/lava.gif"
         },
 
         "outlands": {
             "titulo": "🏝 Sala de Outlands Detectada",
-            "descripcion": "¡Una nueva aventura de Outlands ha aparecido!",
-            "color": 0x00AAFF,
+            "descripcion": (
+                "✨ Una aventura de **Outlands** ha aparecido.\n"
+                "¡Es momento de explorar nuevas tierras!"
+            ),
+            "color": 0x00BFFF,
             "gif": "https://media.tenor.com/2uyENRmiUt0AAAAC/anime.gif"
         },
 
         "whispering": {
             "titulo": "🌲 Sala de Whispering Detectada",
-            "descripcion": "¡Una nueva aventura de Whispering ha aparecido!",
-            "color": 0x55FF55,
+            "descripcion": (
+                "🌲 Una aventura de **Whispering** ha aparecido.\n"
+                "Los bosques misteriosos están esperando..."
+            ),
+            "color": 0x57F287,
             "gif": "https://media.tenor.com/Ye7Sk9i6Ck0AAAAC/forest.gif"
         }
     }
+
+    # =========================================
+    # DETECCIÓN
+    # =========================================
 
     for palabra, datos in aventuras.items():
 
         if palabra in texto:
 
-            print(f"✅ DETECTADO: {palabra}")
+            print(f"✅ Detectado: {palabra}")
 
             canal = bot.get_channel(CANAL_ALERTAS)
 
@@ -152,12 +144,33 @@ async def on_message(message):
                     color=datos["color"]
                 )
 
-                embed.set_thumbnail(url=datos["gif"])
+                # GIF decorativo
+                embed.set_thumbnail(
+                    url=datos["gif"]
+                )
 
+                # Ping dentro embed
                 embed.add_field(
-                    name="🔔 Rol",
+                    name="🔔 Aventureros",
                     value=f"<@&{ROL_AVENTURA}>",
                     inline=False
+                )
+
+                # Canal detectado
+                embed.add_field(
+                    name="📍 Canal",
+                    value=message.channel.mention,
+                    inline=True
+                )
+
+                embed.add_field(
+                    name="🤖 Sistema",
+                    value="Crazy Tracker",
+                    inline=True
+                )
+
+                embed.set_footer(
+                    text="Crazy Cats • Sistema de Aventuras"
                 )
 
                 await canal.send(embed=embed)
