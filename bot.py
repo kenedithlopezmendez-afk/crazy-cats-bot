@@ -52,15 +52,14 @@ async def on_ready():
 # ==================================================
 # DETECTOR DE AVENTURAS
 # ==================================================
-
 @bot.event
 async def on_message(message):
 
-    print(f"📩 MENSAJE DETECTADO: {message.content}")
-
-    texto = str(message.embeds).lower()
-
-    print(texto)
+    print("================================")
+    print("📩 MENSAJE RECIBIDO")
+    print(f"Autor: {message.author}")
+    print(f"Contenido: {message.content}")
+    print("================================")
 
     await bot.process_commands(message)
 # ==================================================
