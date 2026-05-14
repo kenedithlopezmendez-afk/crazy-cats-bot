@@ -55,11 +55,7 @@ async def on_ready():
 @bot.event
 async def on_message(message):
 
-    print("================================")
-    print("📩 MENSAJE RECIBIDO")
-    print(f"Autor: {message.author}")
-    print(f"Contenido: {message.content}")
-    print("================================")
+    logging.info(f"📩 MENSAJE: {message.author} | {message.content}")
 
     await bot.process_commands(message)
 # ==================================================
