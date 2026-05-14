@@ -56,7 +56,11 @@ async def on_ready():
 @bot.event
 async def on_message(message):
 
-    print(f"📩 MENSAJE: {message.author} | {message.content}")
+    print(f"📩 MENSAJE DETECTADO: {message.content}")
+
+    texto = str(message.embeds).lower()
+
+    print(texto)
 
     await bot.process_commands(message)
 # ==================================================
