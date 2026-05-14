@@ -1,9 +1,9 @@
 import discord
 from discord.ext import commands
-import logging
 from flask import Flask
 from threading import Thread
 import os
+import logging
 logging.basicConfig(level=logging.INFO)
 
 # ==================================================
