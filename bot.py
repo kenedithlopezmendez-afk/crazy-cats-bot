@@ -64,7 +64,8 @@ async def escanear_novedad(message):
     total_info = texto_plano + contenido_embed
 
     # CRITERIO: ¿Es una sala de aventura de Nekotina?
-    if "sala de aventura" in total_info or "¡únete" in total_info:
+    if "### <:nk:1423430200430952510> Sala de Aventura:"
+        in total_info or "¡únete" in total_info:
         encontrado = True
         if "magma" in total_info:
             zona = "MAGMA 🌋"
