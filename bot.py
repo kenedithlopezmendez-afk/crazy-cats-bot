@@ -66,7 +66,7 @@ async def verificar_y_enviar_alerta(message):
             "descripcion": "🔥 El calor aumenta, ¡prepara tus mascotas y únete antes de que despegue!",
             "color": 0xFF5500
         },
-        "outlands": {
+        "remotas": {
             "titulo": "🏝 ¡SALA DE OUTLANDS DETECTADA!",
             "descripcion": "✨ ¡Una zona misteriosa ha aparecido! Corran a unirse.",
             "color": 0x00AAFF
