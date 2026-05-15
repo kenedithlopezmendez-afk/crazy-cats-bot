@@ -40,7 +40,7 @@ bot = commands.Bot(
 # ==================================================
 # CONFIGURACIÓN DE IDs (Verifica que estos sean correctos)
 # ==================================================
-NEKOTINA_ID = 701013303063543868  # ID Real de Nekotina
+NEKOTINA_ID = 429457053791158281  # ID Real de Nekotina
 CANAL_DETECCION = 1436358970284572723
 CANAL_ALERTAS = 1436358970284572723
 ROL_AVENTURA = 1436361900215500870
