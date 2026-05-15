@@ -3,100 +3,167 @@ from discord.ext import commands
 from flask import Flask
 from threading import Thread
 import os
+import logging
+
+# Configuración de logs básica para ver movimientos en Render
+logging.basicConfig(level=logging.INFO)
 
 # ==================================================
-# FLASK / KEEP ALIVE
+# FLASK / KEEP ALIVE (Para evitar el apagado en Render)
 # ==================================================
 app = Flask(__name__)
-@app.route("/")
-def home(): return "Crazy Tracker Activo 🐾"
 
-def run(): app.run(host="0.0.0.0", port=10000)
+@app.route("/")
+def home():
+    return "Crazy Tracker: Escáner de Aventuras Activo 🐾"
+
+def run():
+    app.run(host="0.0.0.0", port=10000)
+
 def keep_alive():
     t = Thread(target=run)
     t.start()
 
 # ==================================================
-# CONFIG BOT
+# CONFIGURACIÓN DEL BOT Y SUS INTENTS
 # ==================================================
 TOKEN = os.environ["TOKEN"]
+
 intents = discord.Intents.default()
 intents.message_content = True 
+intents.messages = True
 
 bot = commands.Bot(command_prefix="?", intents=intents)
 
-CANAL_DETECCION = 1436358970284572723
-ROL_AVENTURA = 1436361900215500870
+# -------- CONFIGURACIÓN DE IDs DE TU SERVIDOR --------
+CANAL_AVENTURAS = 1436358970284572723  # Canal donde el bot enviará el ping
+ROL_AVENTURA = 1436361900215500870     # Rol a etiquetar
+CANAL_DETECCION = 1436358970284572723  # Canal exclusivo donde juega Nekotina
+
+# ID DE NEKOTINA (Cambia este ID si usas la versión App global o el Bot clásico)
+NEKOTINA_ID = 429457053791158281  
 
 # ==================================================
-# LÓGICA DE DETECCIÓN
+# NÚCLEO DEL DETECTOR
 # ==================================================
-async def escanear_novedad(message):
-    if message.channel.id != CANAL_DETECCION or message.author.id == bot.user.id:
+async def verificar_y_enviar_alerta(message):
+    # 1. RESTRICCIÓN: Detectar SOLO en el canal especificado
+    if message.channel.id != CANAL_DETECCION:
         return
 
-    bolsa_de_texto = ""
-    if message.content:
-        bolsa_de_texto += message.content.lower()
+    # 2. RESTRICCIÓN: Detectar SOLO mensajes que vengan de Nekotina
+    if message.author.id != NEKOTINA_ID:
+        return
 
-    if message.embeds:
-        for emb in message.embeds:
-            # Capturamos título, descripción y campos
-            if emb.title: bolsa_de_texto += f" {emb.title.lower()}"
-            if emb.description: bolsa_de_texto += f" {emb.description.lower()}"
-            for field in emb.fields:
-                bolsa_de_texto += f" {field.name.lower()} {field.value.lower()}"
+    # Si no contiene embeds, ignoramos
+    if not message.embeds:
+        return
 
-    # --- AQUÍ ESTÁ EL CAMBIO IMPORTANTE ---
-    # Usamos el ID del emoji y el texto exacto. 
-    # Nekotina usa: ### <:nk:1423430200430952510> Sala de Aventura
-    
-    encontrado = False
-    # Definimos los disparadores exactos (en minúsculas porque usamos .lower())
-    disparador_emoji = "<:nk:1423430200430952510>"
-    disparador_texto = "sala de aventura"
+    # Mapeo de zonas según las palabras clave secundarias
+    salas = {
+        "magma": {
+            "titulo": "🌋 ¡SALA DE MAGMA DETECTADA!",
+            "descripcion": "🔥 El calor aumenta, ¡prepara tus mascotas y únete antes de que despegue!",
+            "color": 0xFF5500
+        },
+        "outlands": {
+            "titulo": "🏝 ¡SALA DE OUTLANDS DETECTADA!",
+            "descripcion": "✨ ¡Una zona misteriosa ha aparecido! Corran a unirse.",
+            "color": 0x00AAFF
+        },
+        "whispering": {
+            "titulo": "🌲 ¡SALA DE WHISPERING DETECTADA!",
+            "descripcion": "🌲 ¡El bosque susurra... una nueva aventura está disponible!",
+            "color": 0x55FF55
+        }
+    }
 
-    if disparador_texto in bolsa_de_texto or disparador_emoji in bolsa_de_texto:
-        encontrado = True
-        
-        zona = "Aventura"
-        color = 0x2f3136
+    # Leer el contenido de los embeds
+    for embed in message.embeds:
+        texto = ""
 
-        if "magma" in bolsa_de_texto:
-            zona = "MAGMA 🌋"
-            color = 0xFF5A1F
-        elif "outlands" in bolsa_de_texto or "tierras remotas" in bolsa_de_texto:
-            zona = "OUTLANDS 🏝"
-            color = 0x00BFFF
-        elif "whispering" in bolsa_de_texto:
-            zona = "WHISPERING 🌲"
-            color = 0x57F287
+        if embed.title:
+            texto += embed.title.lower()
 
-        if encontrado:
-            canal = bot.get_channel(CANAL_DETECCION)
-            if canal:
-                embed = discord.Embed(
-                    title=f"🚨 ¡SALA DE {zona} DETECTADA!",
-                    description=f"¡Nekotina ha abierto una sala! <@&{ROL_AVENTURA}>",
-                    color=color
+        if embed.description:
+            texto += embed.description.lower()
+
+        # Escanear también los campos internos por si el nombre de la zona cae ahí
+        for field in embed.fields:
+            texto += f" {field.name.lower()} {field.value.lower()}"
+
+        # 3. FILTRO: Debe detectar la palabra "aventura"
+        if "aventura" in texto:
+            
+            zona_encontrada = None
+            
+            for palabra, datos in salas.items():
+                if palabra in texto:
+                    zona_encontrada = datos
+                    break 
+            
+            # Formato genérico si no encuentra una zona del diccionario
+            if not zona_encontrada:
+                zona_encontrada = {
+                    "titulo": "⚔️ ¡NUEVA AVENTURA DETECTADA!",
+                    "descripcion": "¡Una sala de aventura ha aparecido! Revisen el canal.",
+                    "color": 0x2f3136
+                }
+
+            canal_alertas = bot.get_channel(CANAL_AVENTURAS)
+            if canal_alertas:
+                nuevo_embed = discord.Embed(
+                    title=zona_encontrada["titulo"],
+                    description=zona_encontrada["descripcion"],
+                    color=zona_encontrada["color"]
                 )
-                await canal.send(content=f"🔔 <@&{ROL_AVENTURA}>", embed=embed)
+
+                nuevo_embed.add_field(
+                    name="📍 Ubicación de la Sala",
+                    value=message.channel.mention,
+                    inline=False
+                )
+
+                nuevo_embed.set_footer(
+                    text="Crazy Cats • Auto-Tracker v3"
+                )
+
+                # Realiza el ping al rol fuera del embed
+                await canal_alertas.send(
+                    content=f"🔔 <@&{ROL_AVENTURA}>",
+                    embed=nuevo_embed
+                )
+                print(f"✅ Éxito: Alerta enviada para formato '{zona_encontrada['titulo']}'")
+            return
 
 # ==================================================
-# EVENTOS
+# EVENTOS DE ESCUCHA DEL BOT
 # ==================================================
 @bot.event
 async def on_ready():
-    print(f"✅ Bot conectado como {bot.user}")
+    print(f"✅ Crazy Tracker en línea como: {bot.user}")
 
 @bot.event
 async def on_message(message):
-    await escanear_novedad(message)
+    # Ignorar pings provocados por el propio bot
+    if message.author == bot.user:
+        return
+
+    await verificar_y_enviar_alerta(message)
+    await bot.process_commands(message)
 
 @bot.event
 async def on_message_edit(before, after):
-    await escanear_novedad(after)
+    if after.author == bot.user:
+        return
 
+    # Capta el embed cuando la App lo actualiza con los botones de unirse
+    await verificar_y_enviar_alerta(after)
+
+# ==================================================
+# EJECUCIÓN INICIAL
+# ==================================================
 if __name__ == "__main__":
-    keep_alive()
+    keep_alive() 
+    print("🔥 Conectando con los servicios de Discord...")
     bot.run(TOKEN)
