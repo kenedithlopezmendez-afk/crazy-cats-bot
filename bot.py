@@ -3,142 +3,117 @@ from discord.ext import commands
 from flask import Flask
 from threading import Thread
 import os
-import logging
-
-# Configuración de logs para Render
-logging.basicConfig(level=logging.INFO)
 
 # ==================================================
-# FLASK / KEEP ALIVE
+# MANTENER VIVO EN RENDER
 # ==================================================
 app = Flask(__name__)
-
 @app.route("/")
-def home():
-    return "Crazy Tracker: Vigilando Aventuras de Nekotina 🐾"
+def home(): return "Servidor de Detección Activo 🐾"
 
-def run():
-    app.run(host="0.0.0.0", port=10000)
-
+def run(): app.run(host="0.0.0.0", port=10000)
 def keep_alive():
     t = Thread(target=run)
     t.start()
 
 # ==================================================
-# CONFIG BOT
+# CONFIGURACIÓN DEL BOT
 # ==================================================
 TOKEN = os.environ["TOKEN"]
 
+# Necesitamos todos los privilegios de lectura
 intents = discord.Intents.default()
 intents.message_content = True 
+intents.messages = True
 
-bot = commands.Bot(
-    command_prefix="?",
-    intents=intents
-)
+bot = commands.Bot(command_prefix="?", intents=intents)
 
-# IDs de tu servidor (Mantenemos los que me pasaste)
-CANAL_DETECCION =1436358970284572723
-CANAL_ALERTAS =1436358970284572723
-ROL_AVENTURA =1436361900215500870
+# IDs de tu servidor
+CANAL_DETECCION = 1436358970284572723
+ROL_AVENTURA = 1436361900215500870
 
 # ==================================================
-# LÓGICA DE ESCÁNER ULTRA-SENSIBLE
+# NÚCLEO DE DETECCIÓN (LA "TRAMPA")
 # ==================================================
-async def procesar_aventura(message):
-    # 1. Filtro de Canal
+async def escanear_novedad(message):
+    # Solo miramos tu canal de aventuras
     if message.channel.id != CANAL_DETECCION:
         return
 
-    # Evitamos que el bot se responda a sí mismo
+    # Si es nuestro propio mensaje de alerta, lo ignoramos
     if message.author.id == bot.user.id:
         return
 
-    # 2. Recolección de TODO el texto del mensaje
-    bolsa_de_texto = ""
+    encontrado = False
+    zona = "Aventura"
+    color = 0x2f3136
+
+    # 1. Buscamos en el texto normal (tus pruebas)
+    texto_plano = message.content.lower() if message.content else ""
     
-    # Texto plano (por si escribes la prueba tú)
-    if message.content:
-        bolsa_de_texto += message.content.lower()
-    
-    # Contenido de Embeds (Lo que manda Nekotina)
+    # 2. Buscamos en los EMBEDS (Lo que manda Nekotina)
+    # Analizamos título, descripción y campos del cuadrito
+    contenido_embed = ""
     if message.embeds:
         for emb in message.embeds:
-            if emb.title: bolsa_de_texto += f" {emb.title.lower()}"
-            if emb.description: bolsa_de_texto += f" {emb.description.lower()}"
-            if emb.author and emb.author.name: bolsa_de_texto += f" {emb.author.name.lower()}"
-            
-            # Revisar campos (donde suele decir Equipo, Despegue, etc.)
+            if emb.title: contenido_embed += f" {emb.title.lower()}"
+            if emb.description: contenido_embed += f" {emb.description.lower()}"
             for field in emb.fields:
-                bolsa_de_texto += f" {field.name.lower()} {field.value.lower()}"
+                contenido_embed += f" {field.name.lower()} {field.value.lower()}"
 
-    # Si no hay texto, no hacemos nada
-    if not bolsa_de_texto:
-        return
+    total_info = texto_plano + contenido_embed
 
-    # DEBUG: Verás esto en Render cuando llegue algo al canal
-    print(f"📥 MENSAJE RECIBIDO: {message.author.name} dice: {bolsa_de_texto[:100]}...")
-
-    # 3. Detección de Sala
-    palabras_clave = ["sala de aventura", "mascotas", "¡únete"]
-    if any(palabra in bolsa_de_texto for palabra in palabras_clave):
-        
-        zona = "Aventura"
-        color = 0x2f3136
-        gif = ""
-
-        # Identificar la zona específica
-        if "magma" in bolsa_de_texto:
+    # CRITERIO: ¿Es una sala de aventura de Nekotina?
+    if "sala de aventura" in total_info or "¡únete" in total_info:
+        encontrado = True
+        if "magma" in total_info:
             zona = "MAGMA 🌋"
             color = 0xFF5A1F
-            gif = "https://media.tenor.com/7lSun5w8XJAAAAAC/lava.gif"
-        elif "outlands" in bolsa_de_texto or "tierras remotas" in bolsa_de_texto:
+        elif "outlands" in total_info or "tierras remotas" in total_info:
             zona = "OUTLANDS 🏝"
             color = 0x00BFFF
-            gif = "https://media.tenor.com/2uyENRmiUt0AAAAC/anime.gif"
-        elif "whispering" in bolsa_de_texto or "susurrante" in bolsa_de_texto:
+        elif "whispering" in total_info:
             zona = "WHISPERING 🌲"
             color = 0x57F287
-            gif = "https://media.tenor.com/Ye7Sk9i6Ck0AAAAC/forest.gif"
 
-        canal = bot.get_channel(CANAL_ALERTAS)
+    # 3. SI DETECTAMOS ALGO, DISPARAMOS LA ALERTA
+    if encontrado:
+        canal = bot.get_channel(CANAL_DETECCION)
         if canal:
-            # Crear el embed de alerta para tu server
-            embed_alerta = discord.Embed(
-                title=f"🚨 ¡SALA DE {zona} DETECTADA!",
-                description=f"¡Se ha abierto una nueva sala! <@&{ROL_AVENTURA}>\n\n**Canal:** <#{CANAL_DETECCION}>",
+            # Creamos nuestra propia alerta
+            alerta = discord.Embed(
+                title=f"🚨 ¡NUEVA SALA EN {zona}!",
+                description=f"Se ha detectado actividad de Nekotina.\n¡Vayan rápido! <@&{ROL_AVENTURA}>",
                 color=color
             )
-            if gif:
-                embed_alerta.set_thumbnail(url=gif)
+            alerta.set_footer(text="Crazy Cats • Auto-Tracker")
             
-            embed_alerta.set_footer(text="Crazy Cats • Tracker Final")
-            
-            # Mandamos el ping y el embed
-            await canal.send(content=f"🔔 <@&{ROL_AVENTURA}>", embed=embed_alerta)
-            print(f"✅ ALERTA ENVIADA: {zona}")
+            # El ping va fuera para que notifique a todos
+            await canal.send(content=f"🔔 <@&{ROL_AVENTURA}>", embed=alerta)
+            print(f"✅ ¡Sala de {zona} detectada y avisada!")
 
 # ==================================================
-# EVENTOS DEL BOT
+# EVENTOS DE ESCUCHA
 # ==================================================
 @bot.event
 async def on_ready():
-    print(f"✅ Crazy Tracker conectado como {bot.user}")
+    print(f"✅ Bot conectado con éxito como {bot.user}")
 
 @bot.event
 async def on_message(message):
-    await procesar_aventura(message)
+    # Detecta mensajes nuevos (y tus pruebas de texto)
+    await escanear_novedad(message)
     await bot.process_commands(message)
 
 @bot.event
 async def on_message_edit(before, after):
-    # Esto es clave para detectar cuando la gente se une y el embed cambia
-    await procesar_aventura(after)
+    # ¡ESTO ES LO MÁS IMPORTANTE! 
+    # Nekotina a veces envía el mensaje y luego lo actualiza con el embed.
+    await escanear_novedad(after)
 
 # ==================================================
-# INICIO
+# EJECUCIÓN
 # ==================================================
 if __name__ == "__main__":
     keep_alive()
-    print("🔥 Iniciando conexión con Discord...")
     bot.run(TOKEN)
