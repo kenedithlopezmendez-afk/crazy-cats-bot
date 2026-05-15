@@ -4,6 +4,8 @@ from flask import Flask
 from threading import Thread
 import os
 import logging
+import asyncio  # 🌟 ¡Agregado para manejar los tiempos del juego!
+import random   # 🌟 ¡Agregado para la aleatoriedad de las plataformas!
 
 # Configuración de logs básica para ver movimientos en Render
 logging.basicConfig(level=logging.INFO)
@@ -150,7 +152,7 @@ async def on_message(message):
         return
 
     await verificar_y_enviar_alerta(message)
-    await bot.process_commands(message)
+    await bot.process_commands(message) # 🌟 ¡Súper clave para procesar tus comandos!
 
 @bot.event
 async def on_message_edit(before, after):
@@ -159,6 +161,153 @@ async def on_message_edit(before, after):
 
     # Capta el embed cuando la App lo actualiza con los botones de unirse
     await verificar_y_enviar_alerta(after)
+
+
+# ==================================================
+# 🌟 MINIJUEGO: PLATAFORMAS DINÁMICAS (CON CANDADO DE STAFF) 🌟
+# ==================================================
+PLATAFORMAS = {
+    "💙": "Cielos (Azul)",
+    "❤️": "Fuego (Roja)",
+    "💛": "Júpiter (Amarilla)",
+    "💗": "Amor (Rosa)"
+}
+
+@bot.command()
+@commands.has_any_role("Staff", "Sentinel", "Guardian") # 🔒 CANDADO: Pon aquí los nombres exactos de tus roles de staff
+async def plataformas(ctx):
+    """Juego de plataformas dinámico por rondas según los participantes"""
+    
+    # --- FASE 1: REGISTRO DE PILOTOS ---
+    embed_registro = discord.Embed(
+        title="🌌 • ¡Plataformas al Ataque!",
+        description=(
+            "**¡Llegó el momento de escoger!**\n\n"
+            "Por favor **Reacciona con ✨** para participar en este emocionante desafío galáctico.\n"
+            "Tienes **20 segundos** para unirte."
+        ),
+        color=0x9B59B6
+    )
+    embed_registro.set_footer(text=f"🌙 {ctx.guild.name} • Preparación Estelar")
+    
+    msg_registro = await ctx.send(embed=embed_registro)
+    await msg_registro.add_reaction("✨")
+    await asyncio.sleep(20)
+    
+    # Recuento de reacciones
+    msg_registro = await ctx.channel.fetch_message(msg_registro.id)
+    pilotos = []
+    for reaction in msg_registro.reactions:
+        if str(reaction.emoji) == "✨":
+            usuarios = [user async for user in reaction.users()]
+            pilotos = [u for u in usuarios if not u.bot]
+            break
+
+    if not pilotos:
+        await ctx.send("❌ El juego se canceló porque no se unió ningún piloto.")
+        return
+
+    # --- DETERMINAR LAS RONDAS MÁXIMAS ---
+    rondas_maximas = len(pilotos)
+    ronda_actual = 1
+
+    await ctx.send(f"🚀 **¡Inscripciones cerradas!** Se han unido **{rondas_maximas}** pilotos. El torneo galáctico tendrá un máximo de **{rondas_maximas} rondas**.")
+    await asyncio.sleep(3)
+
+    # --- BUCLE PRINCIPAL DEL JUEGO ---
+    while len(pilotos) > 1 and ronda_actual <= rondas_maximas:
+        
+        # 1. Mostrar quiénes siguen con vida en esta ronda
+        lista_nombres = "\n".join([f"• {p.mention}" for p in pilotos])
+        embed_pilotos = discord.Embed(
+            title=f"🌌 • Lista de Pilotos - Ronda {ronda_actual} de {rondas_maximas}",
+            description=f"**Pilotos en juego:**\n{lista_nombres}",
+            color=0x34495E
+        )
+        embed_pilotos.set_footer(text=f"🌙 {ctx.guild.name}")
+        await ctx.send(embed=embed_pilotos)
+        await asyncio.sleep(4)
+
+        # 2. Fase de Selección de Plataforma
+        embed_eleccion = discord.Embed(
+            title=f"🌌 • Plataformas - Ronda {ronda_actual}",
+            description=(
+                "⏳ **¡Tiempo para elegir!**\n"
+                "Selecciona tu plataforma reaccionando abajo.\n"
+                "La plataforma se va a caer en: **15 segundos**.\n\n"
+                "💙 • Cielos\n"
+                "❤️ • Fuego\n"
+                "💛 • Júpiter\n"
+                "💗 • Amor"
+            ),
+            color=0x3498DB
+        )
+        embed_eleccion.set_footer(text=f"🌙 {ctx.guild.name} • ¡A correr!")
+        
+        msg_eleccion = await ctx.send(embed=embed_eleccion)
+        for emoji in PLATAFORMAS.keys():
+            await msg_eleccion.add_reaction(emoji)
+            
+        await asyncio.sleep(15)
+        
+        # 3. Conteo de los votos de la ronda actual
+        msg_eleccion = await ctx.channel.fetch_message(msg_eleccion.id)
+        elecciones = {p: None for p in pilotos}
+        
+        for reaction in msg_eleccion.reactions:
+            emoji_str = str(reaction.emoji)
+            if emoji_str in PLATAFORMAS:
+                usuarios_en_emoji = [user async for user in reaction.users()]
+                for u in usuarios_en_emoji:
+                    if u in elecciones:
+                        elecciones[u] = emoji_str
+
+        # 4. El Colapso: Elegir qué plataforma explota al azar
+        emoji_colapsado = random.choice(list(PLATAFORMAS.keys()))
+        nombre_colapsado = PLATAFORMAS[emoji_colapsado]
+        
+        eliminados = []
+        sobrevivientes = []
+        
+        for piloto, em in elecciones.items():
+            if em == emoji_colapsado or em is None:
+                eliminados.append(piloto)
+            else:
+                sobrevivientes.append(piloto)
+
+        # 5. Desplegar los resultados de la ronda
+        txt_elim = "\n".join([p.mention for p in eliminados]) if eliminados else "*¡Nadie cayó esta vez!*"
+        txt_sob = "\n".join([p.mention for p in sobrevivientes]) if sobrevivientes else "*Nadie...*"
+
+        embed_res = discord.Embed(
+            title=f"🌌 • 🔥 ¡RONDA {ronda_actual} - COLAPSO CÓSMICO!",
+            description=f"La plataforma {emoji_colapsado} **{nombre_colapsado}** ha colapsado y caído al vacío estelar.",
+            color=0xE74C3C
+        )
+        embed_res.add_field(name="🚀 ELIMINADOS", value=f"💥 {txt_elim}", inline=False)
+        embed_res.add_field(name="✨ SOBREVIVEN", value=txt_sob, inline=False)
+        embed_res.set_footer(text=f"🌙 {ctx.guild.name} • Estado de la órbita")
+        await ctx.send(embed=embed_res)
+        
+        # Guardar sobrevivientes para el siguiente ciclo e incrementar ronda
+        pilotos = sobrevivientes
+        ronda_actual += 1
+        await asyncio.sleep(5)
+
+    # --- FASE FINAL: DETERMINAR AL GANADOR DEFINITIVO ---
+    if len(pilotos) == 1:
+        await ctx.send(f"👑 **¡TENEMOS UN GANADOR CÓSMICO!** Felicitaciones {pilotos.mention} por sobrevivir a todas las plataformas y ganar el desafío.")
+    elif len(pilotos) > 1:
+        lista_final = ", ".join([p.mention for p in pilotos])
+        await ctx.send(f"🏁 **¡Fin del juego por límite de rondas!** Los pilotos que lograron sobrevivir hasta el final son: {lista_final}. ¡Felicidades a todos!")
+    else:
+        await ctx.send("💀 **Colapso Absoluto:** Todos los pilotos cayeron al vacío en la última ronda. No quedó nadie para reclamar la victoria.")
+
+# 🛑 CONTROLADOR DE ERRORES: Avisa amablemente si alguien no autorizado usa el comando
+@plataformas.error
+async def plataformas_error(ctx, error):
+    if isinstance(error, commands.MissingAnyRole):
+        await ctx.send(f"❌ {ctx.author.mention}, **¡Acceso Denegado!** Lo siento, pero solo los miembros del Staff autorizados pueden iniciar el torneo de plataformas.")
 
 # ==================================================
 # EJECUCIÓN INICIAL
