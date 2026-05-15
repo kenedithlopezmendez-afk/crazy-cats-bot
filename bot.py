@@ -167,7 +167,7 @@ async def on_message_edit(before, after):
 
 
 # ==================================================
-# 🌟 MINIJUEGO: PLATAFORMAS DINÁMICAS (CANDADO POR ID) 🌟
+# 🌟 MINIJUEGO: PLATAFORMAS DINÁMICAS (CON SISTEMA ANTITRAMPAS) 🌟
 # ==================================================
 PLATAFORMAS = {
     "💙": "Cielos (Azul)",
@@ -177,9 +177,9 @@ PLATAFORMAS = {
 }
 
 @bot.command()
-@commands.has_any_role(ROL_STAFF_JUEGO) # 🔒 Candado estricto por ID
+@commands.has_any_role(ROL_STAFF_JUEGO) # 🔒 Candado estricto por ID de rol
 async def plataformas(ctx):
-    """Juego de plataformas dinámico por rondas según los participantes"""
+    """Juego de plataformas infinito, antitrampas y hasta que quede un ganador"""
     
     # --- FASE 1: REGISTRO DE PILOTOS ---
     embed_registro = discord.Embed(
@@ -187,6 +187,7 @@ async def plataformas(ctx):
         description=(
             "**¡Llegó el momento de escoger!**\n\n"
             "Por favor **Reacciona con ✨** para participar en este emocionante desafío galáctico.\n"
+            "Soportamos un máximo de **100 pilotos**.\n"
             "Tienes **20 segundos** para unirte."
         ),
         color=0x9B59B6
@@ -197,12 +198,12 @@ async def plataformas(ctx):
     await msg_registro.add_reaction("✨")
     await asyncio.sleep(20)
     
-    # Recuento de reacciones
+    # Recuento forzado de reacciones (hasta 100 usuarios)
     msg_registro = await ctx.channel.fetch_message(msg_registro.id)
     pilotos = []
     for reaction in msg_registro.reactions:
         if str(reaction.emoji) == "✨":
-            usuarios = [user async for user in reaction.users()]
+            usuarios = [user async for user in reaction.users(limit=100)]
             pilotos = [u for u in usuarios if not u.bot]
             break
 
@@ -210,21 +211,21 @@ async def plataformas(ctx):
         await ctx.send("❌ El juego se canceló porque no se unió ningún piloto.")
         return
 
-    # --- DETERMINAR LAS RONDAS MÁXIMAS ---
-    rondas_maximas = len(pilotos)
-    ronda_actual = 1
+    if len(pilotos) > 100:
+        pilotos = pilotos[:100]
 
-    await ctx.send(f"🚀 **¡Inscripciones cerradas!** Se han unido **{rondas_maximas}** pilotos. El torneo galáctico tendrá un máximo de **{rondas_maximas} rondas**.")
+    ronda_actual = 1
+    await ctx.send(f"🚀 **¡Inscripciones cerradas!** Se han detectado **{len(pilotos)}** pilotos en la órbita. ¡El torneo continuará hasta que solo quede un ganador!")
     await asyncio.sleep(3)
 
-    # --- BUCLE PRINCIPAL DEL JUEGO ---
-    while len(pilotos) > 1 and ronda_actual <= rondas_maximas:
+    # --- BUCLE PRINCIPAL (RONDAS INFINITAS) ---
+    while len(pilotos) > 1:
         
         # 1. Mostrar quiénes siguen con vida en esta ronda
         lista_nombres = "\n".join([f"• {p.mention}" for p in pilotos])
         embed_pilotos = discord.Embed(
-            title=f"🌌 • Lista de Pilotos - Ronda {ronda_actual} de {rondas_maximas}",
-            description=f"**Pilotos en juego:**\n{lista_nombres}",
+            title=f"🌌 • Lista de Pilotos - Ronda {ronda_actual}",
+            description=f"**Pilotos en juego ({len(pilotos)}):**\n{lista_nombres}",
             color=0x34495E
         )
         embed_pilotos.set_footer(text=f"🌙 {ctx.guild.name}")
@@ -253,17 +254,20 @@ async def plataformas(ctx):
             
         await asyncio.sleep(15)
         
-        # 3. Conteo de los votos de la ronda actual
+        # 3. Conteo de los votos con ANTITRAMPAS
         msg_eleccion = await ctx.channel.fetch_message(msg_eleccion.id)
         elecciones = {p: None for p in pilotos}
         
         for reaction in msg_eleccion.reactions:
             emoji_str = str(reaction.emoji)
             if emoji_str in PLATAFORMAS:
-                usuarios_en_emoji = [user async for user in reaction.users()]
+                usuarios_en_emoji = [user async for user in reaction.users(limit=100)]
                 for u in usuarios_en_emoji:
                     if u in elecciones:
-                        elecciones[u] = emoji_str
+                        # 🌟 ANTITRAMPAS: Solo le asigna plataforma si aún no ha elegido ninguna.
+                        # Si ya tiene una guardada (no es None), ignora cualquier otro emoji secundario.
+                        if elecciones[u] is None:
+                            elecciones[u] = emoji_str
 
         # 4. El Colapso: Elegir qué plataforma explota al azar
         emoji_colapsado = random.choice(list(PLATAFORMAS.keys()))
@@ -300,13 +304,10 @@ async def plataformas(ctx):
     # --- FASE FINAL: DETERMINAR AL GANADOR DEFINITIVO ---
     if len(pilotos) == 1:
         await ctx.send(f"👑 **¡TENEMOS UN GANADOR CÓSMICO!** Felicitaciones {pilotos.mention} por sobrevivir a todas las plataformas y ganar el desafío.")
-    elif len(pilotos) > 1:
-        lista_final = ", ".join([p.mention for p in pilotos])
-        await ctx.send(f"🏁 **¡Fin del juego por límite de rondas!** Los pilotos que lograron sobrevivir hasta el final son: {lista_final}. ¡Felicidades a todos!")
     else:
-        await ctx.send("💀 **Colapso Absoluto:** Todos los pilotos cayeron al vacío en la última ronda. No quedó nadie para reclamar la victoria.")
+        await ctx.send("💀 **Colapso Absoluto:** Todos los pilotos cayeron al vacío en la última ronda. No quedó nadie vivo para reclamar la victoria.")
 
-# 🛑 CONTROLADOR DE ERRORES: Avisa si alguien no tiene el ID de rol correcto
+# 🛑 CONTROLADOR DE ERRORES
 @plataformas.error
 async def plataformas_error(ctx, error):
     if isinstance(error, commands.MissingAnyRole):
