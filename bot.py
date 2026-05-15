@@ -45,6 +45,9 @@ CANAL_DETECCION = 1436358970284572723  # Canal exclusivo donde juega Nekotina
 # ID DE NEKOTINA (Cambia este ID si usas la versión App global o el Bot clásico)
 NEKOTINA_ID = 429457053791158281  
 
+# 🌟 TU NUEVO ID: Reemplaza este número por el ID real de tu rol de Staff
+ROL_STAFF_JUEGO = 937028989854298172
+
 # ==================================================
 # NÚCLEO DEL DETECTOR
 # ==================================================
@@ -164,7 +167,7 @@ async def on_message_edit(before, after):
 
 
 # ==================================================
-# 🌟 MINIJUEGO: PLATAFORMAS DINÁMICAS (CON CANDADO DE STAFF) 🌟
+# 🌟 MINIJUEGO: PLATAFORMAS DINÁMICAS (CANDADO POR ID) 🌟
 # ==================================================
 PLATAFORMAS = {
     "💙": "Cielos (Azul)",
@@ -174,7 +177,7 @@ PLATAFORMAS = {
 }
 
 @bot.command()
-@commands.has_any_role("Staff", "Sentinel", "Guardian") # 🔒 CANDADO: Pon aquí los nombres exactos de tus roles de staff
+@commands.has_any_role(ROL_STAFF_JUEGO) # 🔒 Candado estricto por ID
 async def plataformas(ctx):
     """Juego de plataformas dinámico por rondas según los participantes"""
     
@@ -303,12 +306,11 @@ async def plataformas(ctx):
     else:
         await ctx.send("💀 **Colapso Absoluto:** Todos los pilotos cayeron al vacío en la última ronda. No quedó nadie para reclamar la victoria.")
 
-# 🛑 CONTROLADOR DE ERRORES: Avisa amablemente si alguien no autorizado usa el comando
+# 🛑 CONTROLADOR DE ERRORES: Avisa si alguien no tiene el ID de rol correcto
 @plataformas.error
 async def plataformas_error(ctx, error):
     if isinstance(error, commands.MissingAnyRole):
         await ctx.send(f"❌ {ctx.author.mention}, **¡Acceso Denegado!** Lo siento, pero solo los miembros del Staff autorizados pueden iniciar el torneo de plataformas.")
-
 # ==================================================
 # EJECUCIÓN INICIAL
 # ==================================================
