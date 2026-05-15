@@ -5,17 +5,17 @@ from threading import Thread
 import os
 import logging
 
-# Configuración de logs básica para ver qué pasa en Render
+# Configuración de logs para ver el rastro en Render
 logging.basicConfig(level=logging.INFO)
 
 # ==================================================
-# FLASK / KEEP ALIVE (Para que Render no lo apague)
+# FLASK / KEEP ALIVE
 # ==================================================
 app = Flask(__name__)
 
 @app.route("/")
 def home():
-    return "Crazy Tracker activo y vigilando 🐾"
+    return "Crazy Tracker: Escaneando Aventuras 🐾"
 
 def run():
     app.run(host="0.0.0.0", port=10000)
@@ -30,90 +30,82 @@ def keep_alive():
 TOKEN = os.environ["TOKEN"]
 
 intents = discord.Intents.default()
-intents.message_content = True  # IMPORTANTE: Ya lo activaste en el portal
+intents.message_content = True 
 
 bot = commands.Bot(
     command_prefix="?",
     intents=intents
 )
 
-# ==================================================
-# CONFIGURACIÓN DE IDs (Verifica que estos sean correctos)
-# ==================================================
-NEKOTINA_ID = 429457053791158281  # ID Real de Nekotina
+# IDs de tu servidor (Verifica que sean estos)
 CANAL_DETECCION = 1436358970284572723
 CANAL_ALERTAS = 1436358970284572723
 ROL_AVENTURA = 1436361900215500870
 
 # ==================================================
-# LÓGICA DE DETECCIÓN
+# LÓGICA DE ESCÁNER DE AVENTURAS
 # ==================================================
 async def procesar_aventura(message):
-    # Validamos que sea Nekotina y en el canal correcto
-    if message.author.id != NEKOTINA_ID:
-        return
+    # 1. Filtro de Canal (Vital para no leer todo el server)
     if message.channel.id != CANAL_DETECCION:
         return
+
+    # 2. Verificar si tiene Embeds (Las salas de Nekotina siempre son embeds)
     if not message.embeds:
         return
 
     for emb in message.embeds:
-        # Extraemos texto de título y descripción para buscar salas
+        # Extraemos todo el texto posible
         contenido = ""
         if emb.title: contenido += emb.title.lower()
         if emb.description: contenido += emb.description.lower()
+        if emb.author and emb.author.name: contenido += emb.author.name.lower()
         
-        # Log para debug en Render
-        print(f"🔍 Analizando embed de Nekotina: {contenido}")
+        # Este log es para que tú veas en Render que el bot está leyendo
+        print(f"📡 ESCÁNER: Leyendo contenido de {message.author.name}...")
 
+        # 3. Detectar si es una Sala de Aventura
         if "sala de aventura" in contenido or "¡únete con tus mascotas!" in contenido:
             
-            # Datos por defecto
-            titulo_alerta = "✨ Nueva Sala Detectada"
-            desc_alerta = "¡Una nueva aventura ha comenzado!"
-            color_alerta = 0x2f3136
-            img_alerta = ""
+            # Valores por defecto
+            zona_nombre = "Aventura Desconocida"
+            color_hex = 0x2f3136
+            gif_url = ""
 
-            # Personalización por zona
+            # 4. Clasificar por Zona
             if "magma" in contenido:
-                titulo_alerta = "🌋 ¡SALA DE MAGMA DETECTADA!"
-                desc_alerta = "🔥 El calor aumenta, ¡únete antes de que despegue!"
-                color_alerta = 0xFF5A1F
-                img_alerta = "https://media.tenor.com/7lSun5w8XJAAAAAC/lava.gif"
-            
-            elif "outlands" in contenido:
-                titulo_alerta = "🏝 ¡SALA DE OUTLANDS DETECTADA!"
-                desc_alerta = "✨ ¡Una zona misteriosa ha aparecido!"
-                color_alerta = 0x00BFFF
-                img_alerta = "https://media.tenor.com/2uyENRmiUt0AAAAC/anime.gif"
-            
+                zona_nombre = "MAGMA 🌋"
+                color_hex = 0xFF5A1F
+                gif_url = "https://media.tenor.com/7lSun5w8XJAAAAAC/lava.gif"
+            elif "outlands" in contenido or "tierras remotas" in contenido:
+                zona_nombre = "OUTLANDS 🏝"
+                color_hex = 0x00BFFF
+                gif_url = "https://media.tenor.com/2uyENRmiUt0AAAAC/anime.gif"
             elif "whispering" in contenido:
-                titulo_alerta = "🌲 ¡SALA DE WHISPERING DETECTADA!"
-                desc_alerta = "🌲 ¡Adéntrate en el bosque susurrante!"
-                color_alerta = 0x57F287
-                img_alerta = "https://media.tenor.com/Ye7Sk9i6Ck0AAAAC/forest.gif"
+                zona_nombre = "WHISPERING 🌲"
+                color_hex = 0x57F287
+                gif_url = "https://media.tenor.com/Ye7Sk9i6Ck0AAAAC/forest.gif"
 
-            # Enviar la alerta
+            # 5. Enviar la Alerta
             canal = bot.get_channel(CANAL_ALERTAS)
             if canal:
-                embed = discord.Embed(
-                    title=titulo_alerta,
-                    description=desc_alerta,
-                    color=color_alerta
+                embed_alerta = discord.Embed(
+                    title=f"🚨 ¡SALA DE {zona_nombre} DETECTADA!",
+                    description=f"Se ha abierto una nueva sala en el canal <#{CANAL_DETECCION}>.\n¡Únanse rápido!",
+                    color=color_hex
                 )
-                if img_alerta:
-                    embed.set_thumbnail(url=img_alerta)
+                if gif_url:
+                    embed_alerta.set_thumbnail(url=gif_url)
                 
-                embed.add_field(name="🔔 Aviso", value=f"¡Corran! <@&{ROL_AVENTURA}>", inline=False)
-                embed.set_footer(text="Crazy Cats • Tracker")
-
-                # Mandamos el ping fuera del embed para que notifique al móvil
-                await canal.send(content=f"<@&{ROL_AVENTURA}>", embed=embed)
-                print(f"✅ Alerta enviada para la zona: {titulo_alerta}")
+                embed_alerta.set_footer(text="Crazy Cats • Tracker v2")
+                
+                # Ping al rol fuera del embed
+                await canal.send(content=f"🔔 <@&{ROL_AVENTURA}>", embed=embed_alerta)
+                print(f"✅ Alerta enviada para {zona_nombre}")
             return
 
 # ==================================================
-# EVENTOS DEL BOT
+# EVENTOS
 # ==================================================
 @bot.event
 async def on_ready():
@@ -121,22 +113,19 @@ async def on_ready():
 
 @bot.event
 async def on_message(message):
-    # Detecta cuando la sala se publica (mensaje nuevo)
+    # Detección en mensajes nuevos
     await procesar_aventura(message)
     await bot.process_commands(message)
 
 @bot.event
 async def on_message_edit(before, after):
-    # Detecta si Nekotina edita el mensaje (muy común en sus aventuras)
+    # Detección en mensajes editados (Nekotina edita mucho)
     await procesar_aventura(after)
 
 # ==================================================
-# INICIO DEL SERVICIO
+# INICIO
 # ==================================================
 if __name__ == "__main__":
     keep_alive()
-    print("🔥 Iniciando conexión con Discord...")
-    try:
-        bot.run(TOKEN)
-    except Exception as e:
-        print(f"❌ Error al iniciar el bot: {e}")
+    print("🔥 Iniciando conexión...")
+    bot.run(TOKEN)
