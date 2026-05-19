@@ -35,7 +35,7 @@ intents = discord.Intents.default()
 intents.message_content = True 
 intents.messages = True
 
-bot = commands.Bot(command_prefix="?", intents=intents)
+bot = commands.Bot(command_prefix="D", intents=intents)
 
 # -------- CONFIGURACIÓN DE IDs DE TU SERVIDOR --------
 CANAL_AVENTURAS = 1436358970284572723  # Canal donde el bot enviará el ping
@@ -47,6 +47,9 @@ NEKOTINA_ID = 429457053791158281
 
 # 🌟 TU NUEVO ID: Reemplaza este número por el ID real de tu rol de Staff
 ROL_STAFF_JUEGO = 937028989854298172
+# Reemplaza estos números largos por los IDs REALES de tu servidor
+ID_ROL_STAFF = 937028989854298172        # ID de tu rol de Staff
+ID_ROL_PARTICIPANTE = 1481390471153717319 # ID del rol Mishi participante
 
 # ==================================================
 # NÚCLEO DEL DETECTOR
@@ -780,6 +783,108 @@ async def cantar(ctx):
 async def loteria_errors(ctx, error):
     if isinstance(error, commands.MissingAnyRole):
         await ctx.send(f"❌ {ctx.author.mention}, solo el Staff autorizado puede gestionar la lotería.")
+
+        # ==================================================
+# 🛡️ SISTEMA DE MODERACIÓN Y CONTROL POR ID
+# ==================================================
+
+# Verificador personalizado para usar el ID del Staff de forma rápida
+def es_staff_por_id():
+    async def predicate(ctx):
+        # Verifica si el autor del mensaje tiene el rol con el ID de Staff
+        staff_role = ctx.guild.get_role(ID_ROL_STAFF)
+        if staff_role in ctx.author.roles:
+            return True
+        raise commands.MissingAnyRole([staff_role.name if staff_role else "Staff"])
+    return commands.check(predicate)
+
+
+# --- COMANDO 1: ABRIR PARTICIPANTE ---
+@bot.command()
+@es_staff_por_id()
+async def abrir(ctx, member: discord.Member):
+    # Buscamos el rol directamente usando su ID único
+    role = ctx.guild.get_role(ID_ROL_PARTICIPANTE)
+    
+    if not role:
+        await ctx.send("❌ No se encontró el rol de participante con el ID configurado.")
+        return
+
+    if role in member.roles:
+        await ctx.send(f"⚠️ {member.mention} ya tiene acceso abierto.")
+        return
+
+    # Le añadimos el rol y reaccionamos con un check verde
+    await member.add_roles(role)
+    await ctx.message.add_reaction("✅")
+
+
+# --- COMANDO 2: CERRAR PARTICIPANTE ---
+@bot.command()
+@es_staff_por_id()
+async def cerrar(ctx, member: discord.Member):
+    role = ctx.guild.get_role(ID_ROL_PARTICIPANTE)
+    
+    if not role:
+        await ctx.send("❌ No se encontró el rol de participante con el ID configurado.")
+        return
+
+    if role not in member.roles:
+        await ctx.send(f"⚠️ {member.mention} no tenía el acceso abierto.")
+        return
+
+    # Le quitamos el rol y reaccionamos con una cruz roja
+    await member.remove_roles(role)
+    await ctx.message.add_reaction("❌")
+
+
+# --- COMANDO 3: PURGAR MENSAJES (CLEAR) ---
+@bot.command()
+@es_staff_por_id()
+async def clear(ctx, amount: int):
+    await ctx.channel.purge(limit=amount + 1)
+    
+    msg = await ctx.send(f"✅ ¡Se han limpiado {amount} mensajes!")
+    await msg.add_reaction("✅")
+    await asyncio.sleep(3)
+    await msg.delete()
+
+
+# --- COMANDO 4: EXPULSAR (KICK) ---
+@bot.command()
+@es_staff_por_id()
+async def kick(ctx, member: discord.Member, *, reason="No especificada"):
+    await member.kick(reason=reason)
+    await ctx.message.add_reaction("✅")
+    await ctx.send(f"👢 **{member.display_name}** fue expulsado del servidor. Razón: *{reason}*")
+
+
+# --- COMANDO 5: BANEAR (BAN) ---
+@bot.command()
+@es_staff_por_id()
+async def ban(ctx, member: discord.Member, *, reason="No especificada"):
+    await member.ban(reason=reason)
+    await ctx.message.add_reaction("✅")
+    await ctx.send(f"🔨 **{member.display_name}** fue baneado permanentemente. Razón: *{reason}*")
+
+
+# ==================================================
+# 🚨 GESTOR UNIVERSAL DE ERRORES (ACCESO DENEGADO)
+# ==================================================
+@abrir.error
+@cerrar.error
+@clear.error
+@kick.error
+@ban.error
+async def moderacion_errors(ctx, error):
+    if isinstance(error, commands.CheckFailure) or isinstance(error, commands.MissingAnyRole) or isinstance(error, commands.MissingPermissions):
+        embed_error = discord.Embed(
+            title="🚫 • Acceso Denegado",
+            description=f"Lo siento {ctx.author.mention}, pero no tienes los permisos o rangos de **Staff** necesarios para utilizar este comando.",
+            color=0xE74C3C
+        )
+        embed_error.set_footer(text=f"Crazy Cats Security • {ctx.guild.name}")
+        await ctx.send(embed=embed_error)
 # ==================================================
 # EJECUCIÓN INICIAL
 # ==================================================
