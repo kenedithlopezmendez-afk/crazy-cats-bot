@@ -1013,6 +1013,47 @@ async def pago(ctx):
     
     subasta_activa = False  # Apagamos la subasta para dejar todo listo para la siguiente lista
     await ctx.send(embed=embed_ganador)
+
+    # --- COMANDO: MOSTRAR CARTELERA COMPLETA EN SECRETO (SOLO STAFF) ---
+@bot.command(name="subastas")
+@es_staff_por_id()
+async def subastas(ctx):
+    # 🤫 BORRADO SECRETO: Elimina el mensaje del Staff de inmediato
+    try:
+        await ctx.message.delete()
+    except discord.Forbidden:
+        pass  # Si el bot no tiene permisos para borrar mensajes, no crashea
+
+    embed = discord.Embed(
+        title="🔨 • ¡CARTELERA OFICIAL DE SUBASTAS! • 🪙",
+        description=(
+            "¡Atención Mishitos! Los motores preparen esos emps. 🔥\n"
+            "Aquí tienen la lista completa de los ítems que se disputarán hoy junto a sus dueños.\n\n"
+            "⚠️ *Los precios iniciales son secretos hasta que el Staff abra cada lista con `Dlista`.* \n"
+            "---"
+        ),
+        color=0xE67E22  # Color naranja llamativo para el evento 🐈
+    )
+
+    # 🔄 Recorremos las 10 listas de forma automática
+    for num, datos in SUBASTAS_DATA.items():
+        # Si tienes campos vacíos en tu configuración, evita que se rompa el embed
+        item_nombre = datos["item"] if datos["item"] else "Por anunciar..."
+        dueno_nombre = datos["dueno"] if datos["dueno"] else "Anónimo"
+        
+        # Agregamos cada lista como un campo en el Embed (sin el precio inicial)
+        embed.add_field(
+            name=f"📦 Lista #{num}",
+            value=f"**Ítem:** {item_nombre}\n👤 **Dueño:** {dueno_nombre}",
+            inline=False
+        )
+
+    embed.set_footer(text=f"🐾 {ctx.guild.name} • ¡Preparen sus billeteras!")
+    
+    # Si quieres poner una imagen general de cartelera o banner abajo, pon su link aquí:
+    embed.set_image(url="https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3Z6Ym94ZnM3N3Y0b3E4ZXN4ZHY4Y3ZpZ3B3dzBwYm9pZnZidSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/l0HlVJpG6N9YshF8k/giphy.gif")
+
+    await ctx.send(embed=embed)
 # ==================================================
 # EJECUCIÓN INICIAL
 # ==================================================
