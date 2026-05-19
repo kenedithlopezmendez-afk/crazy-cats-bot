@@ -167,7 +167,7 @@ async def on_message_edit(before, after):
 
 
 # ==================================================
-# 🌟 MINIJUEGO: PLATAFORMAS DINÁMICAS (CON SISTEMA ANTITRAMPAS) 🌟
+# 🌟 MINIJUEGO: PLATAFORMAS DINÁMICAS (1 MIN REGISTRO + 15 SEG ELECCIÓN) 🌟
 # ==================================================
 PLATAFORMAS = {
     "💙": "Cielos (Azul)",
@@ -181,25 +181,30 @@ PLATAFORMAS = {
 async def plataformas(ctx):
     """Juego de plataformas infinito, antitrampas y hasta que quede un ganador"""
     
-    # --- FASE 1: REGISTRO DE PILOTOS ---
+    # Guardamos el canal exacto para asegurar que los mensajes finales se envíen ahí sí o sí
+    canal_juego = ctx.channel
+    
+    # --- FASE 1: REGISTRO DE PILOTOS (1 MINUTO) ---
     embed_registro = discord.Embed(
         title="🌌 • ¡Plataformas al Ataque!",
         description=(
             "**¡Llegó el momento de escoger!**\n\n"
             "Por favor **Reacciona con ✨** para participar en este emocionante desafío galáctico.\n"
             "Soportamos un máximo de **100 pilotos**.\n"
-            "Tienes **60 segundos** para unirte."
+            "Tienes **1 MINUTO** para unirte." # 🌟 Aviso de 1 minuto
         ),
         color=0x9B59B6
     )
     embed_registro.set_footer(text=f"🌙 {ctx.guild.name} • Preparación Estelar")
     
-    msg_registro = await ctx.send(embed=embed_registro)
+    msg_registro = await canal_juego.send(embed=embed_registro)
     await msg_registro.add_reaction("✨")
+    
+    # 🌟 NUEVO CAMBIO: Espera 60 segundos completos para que todos se unan
     await asyncio.sleep(60)
     
     # Recuento forzado de reacciones (hasta 100 usuarios)
-    msg_registro = await ctx.channel.fetch_message(msg_registro.id)
+    msg_registro = await canal_juego.fetch_message(msg_registro.id)
     pilotos = []
     for reaction in msg_registro.reactions:
         if str(reaction.emoji) == "✨":
@@ -208,14 +213,14 @@ async def plataformas(ctx):
             break
 
     if not pilotos:
-        await ctx.send("❌ El juego se canceló porque no se unió ningún piloto.")
+        await canal_juego.send("❌ El juego se canceló porque no se unió ningún piloto.")
         return
 
     if len(pilotos) > 100:
         pilotos = pilotos[:100]
 
     ronda_actual = 1
-    await ctx.send(f"🚀 **¡Inscripciones cerradas!** Se han detectado **{len(pilotos)}** pilotos en la órbita. ¡El torneo continuará hasta que solo quede un ganador!")
+    await canal_juego.send(f"🚀 **¡Inscripciones cerradas!** Se han detectado **{len(pilotos)}** pilotos en la órbita. ¡El torneo continuará hasta que solo quede un ganador!")
     await asyncio.sleep(3)
 
     # --- BUCLE PRINCIPAL (RONDAS INFINITAS) ---
@@ -229,16 +234,16 @@ async def plataformas(ctx):
             color=0x34495E
         )
         embed_pilotos.set_footer(text=f"🌙 {ctx.guild.name}")
-        await ctx.send(embed=embed_pilotos)
+        await canal_juego.send(embed=embed_pilotos)
         await asyncio.sleep(4)
 
-        # 2. Fase de Selección de Plataforma
+        # 2. Fase de Selección de Plataforma (15 SEGUNDOS)
         embed_eleccion = discord.Embed(
             title=f"🌌 • Plataformas - Ronda {ronda_actual}",
             description=(
                 "⏳ **¡Tiempo para elegir!**\n"
                 "Selecciona tu plataforma reaccionando abajo.\n"
-                "La plataforma se va a caer en: **20 segundos**.\n\n"
+                "La plataforma se va a caer en: **15 segundos**.\n\n" # 🌟 Regresa a 15 segundos rápidos
                 "💙 • Cielos\n"
                 "❤️ • Fuego\n"
                 "💛 • Júpiter\n"
@@ -248,14 +253,15 @@ async def plataformas(ctx):
         )
         embed_eleccion.set_footer(text=f"🌙 {ctx.guild.name} • ¡A correr!")
         
-        msg_eleccion = await ctx.send(embed=embed_eleccion)
+        msg_eleccion = await canal_juego.send(embed=embed_eleccion)
         for emoji in PLATAFORMAS.keys():
             await msg_eleccion.add_reaction(emoji)
             
-        await asyncio.sleep(20)
+        # 🌟 REGRESÓ A 15 SEGUNDOS: Acción rápida para correr a la plataforma
+        await asyncio.sleep(15)
         
         # 3. Conteo de los votos con ANTITRAMPAS
-        msg_eleccion = await ctx.channel.fetch_message(msg_eleccion.id)
+        msg_eleccion = await canal_juego.fetch_message(msg_eleccion.id)
         elecciones = {p: None for p in pilotos}
         
         for reaction in msg_eleccion.reactions:
@@ -264,8 +270,6 @@ async def plataformas(ctx):
                 usuarios_en_emoji = [user async for user in reaction.users(limit=100)]
                 for u in usuarios_en_emoji:
                     if u in elecciones:
-                        # 🌟 ANTITRAMPAS: Solo le asigna plataforma si aún no ha elegido ninguna.
-                        # Si ya tiene una guardada (no es None), ignora cualquier otro emoji secundario.
                         if elecciones[u] is None:
                             elecciones[u] = emoji_str
 
@@ -294,7 +298,7 @@ async def plataformas(ctx):
         embed_res.add_field(name="🚀 ELIMINADOS", value=f"💥 {txt_elim}", inline=False)
         embed_res.add_field(name="✨ SOBREVIVEN", value=txt_sob, inline=False)
         embed_res.set_footer(text=f"🌙 {ctx.guild.name} • Estado de la órbita")
-        await ctx.send(embed=embed_res)
+        await canal_juego.send(embed=embed_res)
         
         # Guardar sobrevivientes para el siguiente ciclo e incrementar ronda
         pilotos = sobrevivientes
@@ -303,10 +307,17 @@ async def plataformas(ctx):
 
     # --- FASE FINAL: DETERMINAR AL GANADOR DEFINITIVO ---
     if len(pilotos) == 1:
-        await ctx.send(f"👑 **¡TENEMOS UN GANADOR CÓSMICO!** Felicitaciones {pilotos.mention} por sobrevivir a todas las plataformas y ganar el desafío.")
+        ganador = pilotos
+        embed_victoria = discord.Embed(
+            title="👑 ¡TENEMOS UN GANADOR CÓSMICO!",
+            description=f"Felicitaciones supremas para {ganador.mention}.\n\n¡Ha logrado esquivar todos los colapsos y es el único sobreviviente del torneo de plataformas! 🎉",
+            color=0xF1C40F
+        )
+        embed_victoria.set_thumbnail(url=ganador.display_avatar.url)
+        embed_victoria.set_footer(text=f"🌙 {ctx.guild.name} • Fin del Desafío")
+        await canal_juego.send(content=f"🏆 {ganador.mention}", embed=embed_victoria)
     else:
-        await ctx.send("💀 **Colapso Absoluto:** Todos los pilotos cayeron al vacío en la última ronda. No quedó nadie vivo para reclamar la victoria.")
-
+        await canal_juego.send("💀 **Colapso Absoluto:** Todos los pilotos cayeron al vacío en la última ronda. No quedó nadie vivo para reclamar la victoria.")
 # 🛑 CONTROLADOR DE ERRORES
 @plataformas.error
 async def plataformas_error(ctx, error):
