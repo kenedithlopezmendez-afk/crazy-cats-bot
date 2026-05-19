@@ -869,7 +869,7 @@ ID_CANAL_PAGO = 1422336904308719667    # ID de tu canal de pagos o reclamos
 
 # Modifica los datos de cada lista aquí adentro antes del evento:
 SUBASTAS_DATA = {
-    1: {"item": "🎒 Pase Premium Nekotina", "dueno": "Dawee", "precio_inicial": 5000, "imagen": "https://i.imgur.com/Ejemplo1.png"},
+    1: {"item": "🎒 Lingote de Magmaria", "dueno": "<@822895885566345216>", "precio_inicial": "5 emp", "imagen": "https://i.imgur.com/Ejemplo1.png"},
     2: {"item": "👑 Corona Imperial (Ítem)", "dueno": "MishiStaff", "precio_inicial": 10000, "imagen": ""},
     3: {"item": "🐱 Gato Místico Level 100", "dueno": "Dawee", "precio_inicial": 7500, "imagen": ""},
     4: {"item": "📦 Caja de Suministros Épica", "dueno": "Moderador1", "precio_inicial": 3000, "imagen": ""},
@@ -934,25 +934,22 @@ for i in range(1, 11):
     crear_comando_lista(i)
 
 
-# --- COMANDO: PUJAR (¡PARA TODOS LOS USUARIOS LIBREMENTE!) ---
+# --- COMANDO: PUJAR (¡AHORA CON DIVISAS LIBRES DE NEKOTINA!) ---
 @bot.command(name="pujar")
-async def pujar(ctx, cantidad: int):
+async def pujar(ctx, *, oferta_texto: str):
     global subasta_activa, ultima_puja, ultimo_pujador
     
     if not subasta_activa:
         await ctx.send(f"❌ {ctx.author.mention}, no hay ninguna subasta corriendo en este momento.", delete_after=5)
         return
-        
-    if cantidad <= ultima_puja:
-        await ctx.send(f"❌ {ctx.author.mention}, tu puja debe ser obligatoriamente mayor a la oferta actual de `{ultima_puja:,}`.", delete_after=5)
-        return
 
-    ultima_puja = cantidad
+    # Guardamos la oferta exacta que escribió el usuario (ej: "10 emp" o "300 Hastes")
+    ultima_puja = oferta_texto
     ultimo_pujador = ctx.author
 
     embed_puja = discord.Embed(
         title="💰 • ¡NUEVA PUJA MÁS ALTA!",
-        description=f"**{ctx.author.mention}** ofrece **`{cantidad:,}`** monedas por el ítem.",
+        description=f"**{ctx.author.mention}** ofrece **`{oferta_texto}`** por el ítem.",
         color=0x2ECC71
     )
     embed_puja.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar.url if ctx.author.avatar else None)
@@ -960,7 +957,6 @@ async def pujar(ctx, cantidad: int):
     embed_puja.set_footer(text="¡La oferta sigue subiendo! ¿Alguien da más?")
 
     await ctx.send(embed=embed_puja)
-
 
 # --- COMANDO: CONTADOR EDITABLE EN TIEMPO REAL (SOLO STAFF) ---
 @bot.command(name="contar")
@@ -982,7 +978,7 @@ async def contar(ctx):
     await mensaje_cronometro.edit(content="🔨 **¡TIEMPO AGOTADO! La subasta se ha cerrado oficialmente.**")
 
 
-# --- COMANDO: DECLARAR GANADOR Y ASIGNAR PAGO (SOLO STAFF) ---
+# --- COMANDO: DECLARAR GANADOR Y ASIGNAR PAGO (CON DIVISA DINÁMICA) ---
 @bot.command(name="pago")
 @es_staff_por_id()
 async def pago(ctx, ganador: discord.Member):
@@ -996,11 +992,11 @@ async def pago(ctx, ganador: discord.Member):
     mencion_canal = canal_pago.mention if canal_pago else "#canal-de-pagos"
     
     embed_ganador = discord.Embed(
-        title="🎉 🏆 ¡SUBASTA FINALIZADA COMTEMPORÁNEA! 🏆 🎉",
+        title="🎉 🏆 ¡SUBASTA FINALIZADA! 🏆 🎉",
         description=(
             f"¡Felicidades {ganador.mention} por haber ganado la subasta!\n\n"
             f"📦 **Ítem ganado:** {item_en_subasta}\n"
-            f"💵 **Favor de pagar:** `{ultima_puja:,}` monedas\n"
+            f"💵 **Favor de pagar:** `{ultima_puja}`\n"
             f"👤 **A favor de:** `{dueno_del_item}` (Dueño original)\n"
             f"📍 **Canal de transferencia:** {mencion_canal}"
         ),
@@ -1010,7 +1006,7 @@ async def pago(ctx, ganador: discord.Member):
         embed_ganador.set_thumbnail(url=ganador.avatar.url)
     embed_ganador.set_footer(text=f"Crazy Cats Auctions • ¡Gracias por comerciar con nosotros!")
     
-    subasta_activa = False  # Apagamos la subasta para habilitar la siguiente lista
+    subasta_activa = False  # Apagamos la subasta para la siguiente lista
     await ctx.send(embed=embed_ganador)
 # ==================================================
 # EJECUCIÓN INICIAL
