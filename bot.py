@@ -910,7 +910,7 @@ async def iniciar_subasta_lista(ctx, numero_lista: int):
         description=(
             f"**Ítem:** {datos['item']}\n"
             f"**Dueño:** {datos['dueno']}\n"
-            f"**Precio Inicial:** `{datos['precio_inicial']:,}` monedas\n\n"
+            f"**Precio Inicial:** `{datos['precio_inicial']}`\n\n" # <-- ¡Corregido aquí! Ya sin el ":,"
             f"▶️ Toda la comunidad puede usar **`Dpujar [cantidad]`** para mejorar la oferta."
         ),
         color=0x9B59B6
