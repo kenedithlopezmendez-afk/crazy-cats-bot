@@ -997,7 +997,7 @@ async def pago(ctx, ganador: discord.Member):
             f"¡Felicidades {ganador.mention} por haber ganado la subasta!\n\n"
             f"📦 **Ítem ganado:** {item_en_subasta}\n"
             f"💵 **Favor de pagar:** `{ultima_puja}`\n"
-            f"👤 **A favor de:** `{dueno_del_item}` (Dueño original)\n"
+            f"👤 **A favor de:** {dueno_del_item} (Dueño original)\n"
             f"📍 **Canal de transferencia:** {mencion_canal}"
         ),
         color=0xF1C40F
