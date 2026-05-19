@@ -1028,8 +1028,8 @@ async def subastas(ctx):
     ping_texto = rol_subastas.mention if rol_subastas else "@Subastas"
 
     # EMOJIS ANIMADOS (Reemplaza con tus IDs reales usando \:emoji:)
-    emoji_titulo = "\<a:cc_moneyy:1039727783766671411>" 
-    emoji_flecha = "\<a:emoji_358:1457417225920315544>"  
+    emoji_titulo = "<a:cc_moneyy:1039727783766671411>" 
+    emoji_flecha = "<a:emoji_358:1457417225920315544>"  
 
     embed = discord.Embed(
         title=f"{emoji_titulo} • ¡CARTELERA OFICIAL DE SUBASTAS! • {emoji_titulo}",
