@@ -188,7 +188,7 @@ async def plataformas(ctx):
             "**¡Llegó el momento de escoger!**\n\n"
             "Por favor **Reacciona con ✨** para participar en este emocionante desafío galáctico.\n"
             "Soportamos un máximo de **100 pilotos**.\n"
-            "Tienes **20 segundos** para unirte."
+            "Tienes **60 segundos** para unirte."
         ),
         color=0x9B59B6
     )
@@ -196,7 +196,7 @@ async def plataformas(ctx):
     
     msg_registro = await ctx.send(embed=embed_registro)
     await msg_registro.add_reaction("✨")
-    await asyncio.sleep(20)
+    await asyncio.sleep(60)
     
     # Recuento forzado de reacciones (hasta 100 usuarios)
     msg_registro = await ctx.channel.fetch_message(msg_registro.id)
@@ -238,7 +238,7 @@ async def plataformas(ctx):
             description=(
                 "⏳ **¡Tiempo para elegir!**\n"
                 "Selecciona tu plataforma reaccionando abajo.\n"
-                "La plataforma se va a caer en: **15 segundos**.\n\n"
+                "La plataforma se va a caer en: **20 segundos**.\n\n"
                 "💙 • Cielos\n"
                 "❤️ • Fuego\n"
                 "💛 • Júpiter\n"
@@ -252,7 +252,7 @@ async def plataformas(ctx):
         for emoji in PLATAFORMAS.keys():
             await msg_eleccion.add_reaction(emoji)
             
-        await asyncio.sleep(15)
+        await asyncio.sleep(20)
         
         # 3. Conteo de los votos con ANTITRAMPAS
         msg_eleccion = await ctx.channel.fetch_message(msg_eleccion.id)
