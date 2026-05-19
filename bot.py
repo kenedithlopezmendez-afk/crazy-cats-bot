@@ -934,7 +934,7 @@ for i in range(1, 11):
     crear_comando_lista(i)
 
 
-# --- COMANDO: PUJAR (¡AHORA CON DIVISAS LIBRES DE NEKOTINA!) ---
+# --- COMANDO: PUJAR (¡REGISTRA AUTOMÁTICAMENTE AL JUGADOR!) ---
 @bot.command(name="pujar")
 async def pujar(ctx, *, oferta_texto: str):
     global subasta_activa, ultima_puja, ultimo_pujador
@@ -943,7 +943,7 @@ async def pujar(ctx, *, oferta_texto: str):
         await ctx.send(f"❌ {ctx.author.mention}, no hay ninguna subasta corriendo en este momento.", delete_after=5)
         return
 
-    # Guardamos la oferta exacta que escribió el usuario (ej: "10 emp" o "300 Hastes")
+    # Guardamos tanto el texto de la oferta como al usuario que la hizo
     ultima_puja = oferta_texto
     ultimo_pujador = ctx.author
 
@@ -978,35 +978,40 @@ async def contar(ctx):
     await mensaje_cronometro.edit(content="🔨 **¡TIEMPO AGOTADO! La subasta se ha cerrado oficialmente.**")
 
 
-# --- COMANDO: DECLARAR GANADOR Y ASIGNAR PAGO (CON DIVISA DINÁMICA) ---
+# --- COMANDO: DECLARAR GANADOR AUTOMÁTICO (¡YA NO PIDES USER!) ---
 @bot.command(name="pago")
 @es_staff_por_id()
-async def pago(ctx, ganador: discord.Member):
-    global subasta_activa, ultima_puja, item_en_subasta, dueno_del_item
+async def pago(ctx):
+    global subasta_activa, ultima_puja, ultimo_pujador, item_en_subasta, dueno_del_item
     
     if not subasta_activa:
         await ctx.send("❌ No hay una subasta activa para cerrar con pago.")
+        return
+        
+    # 🚨 Validación de seguridad por si nadie llegó a pujar durante la lista
+    if ultimo_pujador is None:
+        await ctx.send("⚠️ No se puede cerrar la subasta porque **nadie ha realizado ninguna puja** todavía.")
         return
         
     canal_pago = ctx.guild.get_channel(ID_CANAL_PAGO)
     mencion_canal = canal_pago.mention if canal_pago else "#canal-de-pagos"
     
     embed_ganador = discord.Embed(
-        title="🎉 🏆 ¡SUBASTA FINALIZADA! 🏆 🎉",
+        title="🎉 🏆 ¡SUBASTA FINALIZADA COMTEMPORÁNEA! 🏆 🎉",
         description=(
-            f"¡Felicidades {ganador.mention} por haber ganado la subasta!\n\n"
+            f"¡Felicidades {ultimo_pujador.mention} por haber ganado la subasta!\n\n"
             f"📦 **Ítem ganado:** {item_en_subasta}\n"
             f"💵 **Favor de pagar:** `{ultima_puja}`\n"
-            f"👤 **A favor de:** {dueno_del_item} (Dueño original)\n"
+            f"👤 **A favor de:** {dueno_del_item} (Dueño original)\n" # <-- Formato corregido para menciones limpias
             f"📍 **Canal de transferencia:** {mencion_canal}"
         ),
         color=0xF1C40F
     )
-    if ganador.avatar:
-        embed_ganador.set_thumbnail(url=ganador.avatar.url)
+    if ultimo_pujador.avatar:
+        embed_ganador.set_thumbnail(url=ultimo_pujador.avatar.url)
     embed_ganador.set_footer(text=f"Crazy Cats Auctions • ¡Gracias por comerciar con nosotros!")
     
-    subasta_activa = False  # Apagamos la subasta para la siguiente lista
+    subasta_activa = False  # Apagamos la subasta para dejar todo listo para la siguiente lista
     await ctx.send(embed=embed_ganador)
 # ==================================================
 # EJECUCIÓN INICIAL
