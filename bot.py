@@ -804,6 +804,62 @@ async def moderacion_errors(ctx, error):
         )
         embed_error.set_footer(text=f"Crazy Cats Security • {ctx.guild.name}")
         await ctx.send(embed=embed_error)
+
+        # --- COMANDO: LISTA DE COMANDOS OFICIALES ---
+@bot.command()
+async def comandos(ctx):
+    embed = discord.Embed(
+        title="🐾 • GUÍA DE COMANDOS DE CRAZY CATS",
+        description=(
+            "¡Hola! Aquí tienes la lista oficial de comandos disponibles. "
+            "Recuerda que mi prefijo actual es **`D`**.\n\n"
+            "---"
+        ),
+        color=0xFFB6C1  # Color rosa estético 🌸
+    )
+    
+    # Sección de Dinámicas
+    embed.add_field(
+        name="🔒 1. CONTROL DE DINÁMICAS (Solo Staff)",
+        value=(
+            "`Dabrir @usuario` -> Da el rol de participante para permitirle hablar.\n"
+            "`Dcerrar @usuario` -> Quita el rol de participante al terminar."
+        ),
+        inline=False
+    )
+    
+    # Sección de Moderación
+    embed.add_field(
+        name="🛡️ 2. MODERACIÓN Y SEGURIDAD (Solo Staff)",
+        value=(
+            "`Dclear [cantidad]` -> Borra mensajes en masa de forma limpia.\n"
+            "`Dkick @usuario [razón]` -> Expulsa a un miembro del servidor.\n"
+            "`Dban @usuario [razón]` -> Banea permanentemente a un usuario."
+        ),
+        inline=False
+    )
+    
+    # Sección de Entretenimiento
+    embed.add_field(
+        name="🎮 3. MINIJUEGOS COMPLETOS",
+        value=(
+            "**Gran Lotería (Solo Staff inicia):**\n"
+            "• `Dloteria` -> Abre registros con cartones de 9 figuras.\n"
+            "• `Dcantar` -> Lanza las cartas automáticamente con botones interactivos.\n\n"
+            "**Casino Ruleta (Solo Staff inicia):**\n"
+            "• `Druleta` -> Abre el panel de apuestas interactivo.\n"
+            "• `Dgirar` -> Cierra apuestas, gira la ruleta y anuncia ganadores.\n\n"
+            "**Torneo Espacial (Solo Staff inicia):**\n"
+            "• `Dplataformas` -> Inicia el juego de supervivencia extrema por rondas."
+        ),
+        inline=False
+    )
+    
+    # Detalles visuales
+    embed.set_thumbnail(url="https://cdn.discordapp.com/emojis/112233445566778899.png") # Si tienes un emoji de patita en tu server, puedes poner su link aquí
+    embed.set_footer(text=f"🐾 {ctx.guild.name} • Creado con amor para la comunidad")
+    
+    await ctx.send(embed=embed)
 # ==================================================
 # EJECUCIÓN INICIAL
 # ==================================================
