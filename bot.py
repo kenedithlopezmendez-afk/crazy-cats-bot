@@ -406,7 +406,7 @@ async def ruleta(ctx):
         ),
         color=0x2ECC71
     )
-    embed_casino.set_image(url="https://i.imgur.com/83pZf6b.gif") # Un gif estético de casino/ruleta para dar ambiente
+    embed_casino.set_image(url="https://media3.giphy.com/media/v1.Y2lkPTZjMDliOTUya3JzZGk0N24xbTc1bzlmZ3I2dWUxY2V4NXduYTd2cWRjcmRvNHA1eSZlcD12MV9naWZzX3NlYXJjaCZjdD1n/xUn3CftPBajoflzROU/source.gif") # Un gif estético de casino/ruleta para dar ambiente
     embed_casino.set_footer(text=f"🎲 {ctx.guild.name} • ¡Hagan sus apuestas!")
     
     view = PanelRuleta()
