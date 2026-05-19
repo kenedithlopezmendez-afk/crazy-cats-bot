@@ -493,7 +493,7 @@ async def casino_errors(ctx, error):
     if isinstance(error, commands.MissingAnyRole):
         await ctx.send(f"❌ {ctx.author.mention}, solo el Staff autorizado puede operar las mesas de juego de la ruleta.")
 
-       # ==================================================
+       # # ==================================================
 # 🎲 SISTEMA DE JUEGO: GRAN LOTERÍA INTERACTIVA (9 FIGURAS)
 # ==================================================
 
@@ -508,18 +508,17 @@ BARAJA_LOTERIA = [
 ]
 
 # Variables globales para controlar la partida
-# Estructura de cartones_jugadores: { ID_USUARIO: {"figuras": [...], "marcadas": [...]} }
 cartones_jugadores = {}
 cartas_cantadas = []
 carta_actual = None
 juego_activo = False
 
-# --- INTERFAZ DINÁMICA DE BOTONES (Se reusa en la inscripción y en cada carta) ---
+# --- INTERFAZ DINÁMICA DE BOTONES (Se envía abajo de cada carta cantada) ---
 class InterfazLoteria(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
 
-    # 📋 Botón: Ver mi Cartón (Muestra el progreso con emojis de verificación)
+    # 📋 Botón: Ver mi Cartón
     @discord.ui.button(label="📋 Ver mi Cartón", style=discord.ButtonStyle.blurple, custom_id="btn_ver_carton")
     async def ver_carton(self, interaction: discord.Interaction, button: discord.ui.Button):
         user_id = interaction.user.id
@@ -531,7 +530,6 @@ class InterfazLoteria(discord.ui.View):
         format_carton = []
         
         for figura in datos["figuras"]:
-            # Si ya la marcó, le ponemos una palomita verde, si no, un punto
             status = "✅" if figura in datos["marcadas"] else "🔹"
             format_carton.append(f"{status} {figura}")
             
@@ -541,7 +539,7 @@ class InterfazLoteria(discord.ui.View):
             ephemeral=True
         )
 
-    # 📌 Botón Nuevo: Marcar la figura actual en juego
+    # 📌 Botón: Marcar la figura actual en juego
     @discord.ui.button(label="📌 Marcar Figura", style=discord.ButtonStyle.primary, custom_id="btn_marcar_figura")
     async def marcar_figura(self, interaction: discord.Interaction, button: discord.ui.Button):
         global juego_activo, carta_actual
@@ -556,7 +554,6 @@ class InterfazLoteria(discord.ui.View):
 
         datos = cartones_jugadores[user_id]
         
-        # Verificar si el usuario tiene la carta actual y no la ha marcado antes
         if carta_actual in datos["figuras"]:
             if carta_actual not in datos["marcadas"]:
                 datos["marcadas"].append(carta_actual)
@@ -581,8 +578,6 @@ class InterfazLoteria(discord.ui.View):
             return
             
         datos = cartones_jugadores[user_id]
-        
-        # El sistema valida si de verdad tiene las 9 marcadas Y si esas figuras realmente fueron cantadas
         completo = len(datos["marcadas"]) == 9 and all(f in cartas_cantadas for f in datos["marcadas"])
         
         if completo:
@@ -614,7 +609,6 @@ class PanelInscripcion(discord.ui.View):
             await interaction.response.send_message(f"⚠️ Ya estás inscrito. Tu cartón es:\n{format_carton}", ephemeral=True)
             return
         
-        # Asignamos el cartón vacío de marcas iniciales
         carton_aleatorio = random.sample(BARAJA_LOTERIA, 9)
         cartones_jugadores[user_id] = {"figuras": carton_aleatorio, "marcadas": []}
         
@@ -625,7 +619,7 @@ class PanelInscripcion(discord.ui.View):
         )
 
 
-# --- COMANDO 1: ABRIR LA MESA DE INSCRIPCIÓN (Solo Staff) ---
+# --- COMANDO 1: ABRIR LA MESA DE INSCRIPCIÓN (Usa el validador de Staff por ID) ---
 @bot.command()
 @commands.has_any_role(ROL_STAFF_JUEGO)
 async def loteria(ctx):
@@ -641,7 +635,7 @@ async def loteria(ctx):
         description=(
             "**¡Preparen sus frijolitos!** 🐾\n\n"
             "Presiona el botón de abajo para registrarte y recibir tu **cartón secreto con 9 figuras**.\n"
-            "Cuando todos estén inscritos, un moderador usará `?cantar` para lanzar el juego automático."
+            "Cuando todos estén inscritos, un moderador usará `Dcantar` para lanzar el juego automático."
         ),
         color=0xE67E22
     )
@@ -650,7 +644,7 @@ async def loteria(ctx):
     await ctx.send(embed=embed, view=PanelInscripcion())
 
 
-# --- COMANDO 2: CANTAR AUTOMÁTICAMENTE CON BOTONES INYECTADOS (Solo Staff) ---
+# --- COMANDO 2: CANTAR AUTOMÁTICAMENTE CON BOTONES INYECTADOS ---
 @bot.command()
 @commands.has_any_role(ROL_STAFF_JUEGO)
 async def cantar(ctx):
@@ -671,10 +665,9 @@ async def cantar(ctx):
     mazo_mezclado = BARAJA_LOTERIA.copy()
     random.shuffle(mazo_mezclado)
 
-    # Ciclo de juego
     for carta in mazo_mezclado:
         if not juego_activo: 
-            break  # Freno instantáneo si alguien le da clic a ¡LOTERÍA! y gana legítimamente
+            break  
             
         carta_actual = carta
         cartas_cantadas.append(carta)
@@ -688,11 +681,9 @@ async def cantar(ctx):
         embed_carta.add_field(name="📋 Últimas llamadas", value=f"`{historial}`", inline=False)
         embed_carta.set_footer(text=f"Crazy Cats • Cartas cantadas: {len(cartas_cantadas)}/30")
         
-        # 🌟 LA MAGIA AQUÍ: Inyectamos la InterfazLoteria() completa en cada mensaje cantado
         view_actual = InterfazLoteria()
         await ctx.send(embed=embed_carta, view=view_actual)
         
-        # ⏳ 5 segundos de colchón para que les dé tiempo de reaccionar y darle clic al botón
         await asyncio.sleep(5)
 
     if juego_activo:
@@ -700,89 +691,17 @@ async def cantar(ctx):
         await ctx.send("🃏 **¡Se terminó el mazo!** El juego ha concluido sin ganadores esta vez.")
 
 
-# 🛑 CONTROLADOR DE ERRORES
+# 🛑 GESTOR DE ERRORES DE LOTERÍA
 @loteria.error
 @cantar.error
 async def loteria_errors(ctx, error):
-    if isinstance(error, commands.MissingAnyRole):
-        await ctx.send(f"❌ {ctx.author.mention}, solo el Staff autorizado puede gestionar la lotería.")
-# --- COMANDO 1: ABRIR LA MESA (Solo Staff) ---
-@bot.command()
-@commands.has_any_role(ROL_STAFF_JUEGO)
-async def loteria(ctx):
-    global juego_activo, cartas_cantadas, cartones_jugadores
-    
-    cartones_jugadores.clear()
-    cartas_cantadas.clear()
-    juego_activo = False
-    
-    embed = discord.Embed(
-        title="🎉 • ¡Gran Lotería de Crazy Cats!",
-        description=(
-            "**¡Preparen sus frijolitos!** 🐾\n\n"
-            "Presiona el botón de abajo para registrarte y recibir tu **cartón secreto con 9 figuras**.\n"
-            "Cuando todos estén listos, un moderador usará `?cantar` para empezar el juego."
-        ),
-        color=0xE67E22
-    )
-    embed.set_footer(text=f"🌙 {ctx.guild.name} • Modo Inscripción")
-    
-    view = PanelInscripcion()
-    await ctx.send(embed=embed, view=view)
-
-
-# --- COMANDO 2: AUTOMATIZAR EL CANTO (Solo Staff) ---
-@bot.command()
-@commands.has_any_role(ROL_STAFF_JUEGO)
-async def cantar(ctx):
-    global juego_activo, cartas_cantadas, cartones_jugadores
-    
-    if juego_activo:
-        await ctx.send("❌ Ya hay una ronda cantándose en este momento.")
-        return
-        
-    if not cartones_jugadores:
-        await ctx.send("❌ No hay ningún jugador inscrito todavía. ¡Espera a que saquen sus cartones!")
-        return
-
-    juego_activo = True
-    await ctx.send("🔥 **¡Se barajea el mazo de 30 cartas! El juego comienza en 5 segundos...**")
-    await asyncio.sleep(5)
-
-    mazo_mezclado = BARAJA_LOTERIA.copy()
-    random.shuffle(mazo_mezclado)
-
-    # Ciclo automático de cartas
-    for carta in mazo_mezclado:
-        if not juego_activo: 
-            break  
-            
-        cartas_cantadas.append(carta)
-        
-        embed_carta = discord.Embed(
-            title="🃏 • ¡Se va y se corre con...!",
-            description=f"### 📢 **{carta}**",
-            color=0x2ECC71
+    if isinstance(error, commands.CheckFailure) or isinstance(error, commands.MissingAnyRole):
+        embed_error = discord.Embed(
+            title="🚫 • Acceso Denegado",
+            description=f"Lo siento {ctx.author.mention}, pero necesitas rango de **Staff** para gestionar la lotería.",
+            color=0xE74C3C
         )
-        # Mostramos las últimas 5 cartas cantadas para que lleven mejor el control visual
-        historial = ", ".join(cartas_cantadas[-5:])
-        embed_carta.add_field(name="📋 Últimas llamadas", value=f"`{historial}`", inline=False)
-        embed_carta.set_footer(text=f"Crazy Cats • Cartas cantadas: {len(cartas_cantadas)}/30")
-        
-        await ctx.send(embed=embed_carta)
-        await asyncio.sleep(4) # 4 segundos entre carta y carta para mantenerlo fluido
-
-    if juego_activo:
-        juego_activo = False
-        await ctx.send("🃏 **¡Se terminó el mazo!** Increíblemente nadie logró completar sus 9 figuras esta vez. ¡Más suerte en la próxima ronda!")
-
-
-# 🛑 CONTROLADOR DE ERRORES PARA AMBOS COMANDOS
-@loteria.error
-@cantar.error
-async def loteria_errors(ctx, error):
-    if isinstance(error, commands.MissingAnyRole):
-        await ctx.send(f"❌ {ctx.author.mention}, solo el Staff autorizado puede gestionar la lotería.")
+        await ctx.send(embed=embed_error)
 
         # ==================================================
 # 🛡️ SISTEMA DE MODERACIÓN Y CONTROL POR ID
