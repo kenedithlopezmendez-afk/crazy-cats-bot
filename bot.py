@@ -860,6 +860,158 @@ async def comandos(ctx):
     embed.set_footer(text=f"🐾 {ctx.guild.name} • Creado con amor para la comunidad")
     
     await ctx.send(embed=embed)
+
+    # ==================================================
+# 🪙 CONFIGURACIÓN DE SUBASTAS: LAS 10 LISTAS
+# ==================================================
+ID_ROL_SUBASTAS = 1061055717429219469  # ID de tu rol de subastas (@Subastas)
+ID_CANAL_PAGO = 1422336904308719667    # ID de tu canal de pagos o reclamos
+
+# Modifica los datos de cada lista aquí adentro antes del evento:
+SUBASTAS_DATA = {
+    1: {"item": "🎒 Pase Premium Nekotina", "dueno": "Dawee", "precio_inicial": 5000, "imagen": "https://i.imgur.com/Ejemplo1.png"},
+    2: {"item": "👑 Corona Imperial (Ítem)", "dueno": "MishiStaff", "precio_inicial": 10000, "imagen": ""},
+    3: {"item": "🐱 Gato Místico Level 100", "dueno": "Dawee", "precio_inicial": 7500, "imagen": ""},
+    4: {"item": "📦 Caja de Suministros Épica", "dueno": "Moderador1", "precio_inicial": 3000, "imagen": ""},
+    5: {"item": "💎 500 Gemas Nekotina", "dueno": "Dawee", "precio_inicial": 15000, "imagen": ""},
+    6: {"item": "🎫 Ticket de Cambio de Nombre", "dueno": "StaffCat", "precio_inicial": 2000, "imagen": ""},
+    7: {"item": "⚔️ Espada Legendaria", "dueno": "Dawee", "precio_inicial": 8000, "imagen": ""},
+    8: {"item": "🍏 Manzana Dorada x5", "dueno": "AdminMishi", "precio_inicial": 4000, "imagen": ""},
+    9: {"item": "⚡ Poción de Experiencia x10", "dueno": "Dawee", "precio_inicial": 6000, "imagen": ""},
+    10: {"item": "🔥 Súper Pack Sorpresa Final", "dueno": "Dawee", "precio_inicial": 25000, "imagen": ""}
+}
+
+# Variables de control de memoria interna
+subasta_activa = False
+item_en_subasta = ""
+dueno_del_item = ""
+ultima_puja = 0
+ultimo_pujador = None
+
+import asyncio
+
+# --- FUNCIÓN INTERNA: REGISTRAR E INICIAR UNA LISTA ESPECÍFICA ---
+async def iniciar_subasta_lista(ctx, numero_lista: int):
+    global subasta_activa, ultima_puja, ultimo_pujador, item_en_subasta, dueno_del_item
+    
+    datos = SUBASTAS_DATA[numero_lista]
+    
+    subasta_activa = True
+    item_en_subasta = datos["item"]
+    dueno_del_item = datos["dueno"]
+    ultima_puja = datos["precio_inicial"]
+    ultimo_pujador = None
+    
+    rol_subastas = ctx.guild.get_role(ID_ROL_SUBASTAS)
+    ping = rol_subastas.mention if rol_subastas else "@Subastas"
+    
+    embed = discord.Embed(
+        title=f"🔨 • ¡NUEVA SUBASTA INICIADA (Lista {numero_lista})!",
+        description=(
+            f"**Ítem:** {datos['item']}\n"
+            f"**Dueño:** {datos['dueno']}\n"
+            f"**Precio Inicial:** `{datos['precio_inicial']:,}` monedas\n\n"
+            f"▶️ Toda la comunidad puede usar **`Dpujar [cantidad]`** para mejorar la oferta."
+        ),
+        color=0x9B59B6
+    )
+    if datos["imagen"]:
+        embed.set_thumbnail(url=datos["imagen"])
+    embed.set_footer(text=f"Crazy Cats Auctions • Oferta de apertura: {ultima_puja}")
+    
+    await ctx.send(content=ping, embed=embed)
+
+# --- CREACIÓN AUTOMÁTICA DE COMANDOS: Dlista1 hasta Dlista10 (SOLO STAFF) ---
+def crear_comando_lista(num):
+    @bot.command(name=f"lista{num}")
+    @es_staff_por_id()
+    async def _lista(ctx):
+        await iniciar_subasta_lista(ctx, num)
+    return _lista
+
+# Registramos los 10 comandos en el bot de golpe
+for i in range(1, 11):
+    crear_comando_lista(i)
+
+
+# --- COMANDO: PUJAR (¡PARA TODOS LOS USUARIOS LIBREMENTE!) ---
+@bot.command(name="pujar")
+async def pujar(ctx, cantidad: int):
+    global subasta_activa, ultima_puja, ultimo_pujador
+    
+    if not subasta_activa:
+        await ctx.send(f"❌ {ctx.author.mention}, no hay ninguna subasta corriendo en este momento.", delete_after=5)
+        return
+        
+    if cantidad <= ultima_puja:
+        await ctx.send(f"❌ {ctx.author.mention}, tu puja debe ser obligatoriamente mayor a la oferta actual de `{ultima_puja:,}`.", delete_after=5)
+        return
+
+    ultima_puja = cantidad
+    ultimo_pujador = ctx.author
+
+    embed_puja = discord.Embed(
+        title="💰 • ¡NUEVA PUJA MÁS ALTA!",
+        description=f"**{ctx.author.mention}** ofrece **`{cantidad:,}`** monedas por el ítem.",
+        color=0x2ECC71
+    )
+    embed_puja.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar.url if ctx.author.avatar else None)
+    embed_puja.set_image(url="https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3V6Ym94ZnM3N3Y0b3E4ZXN4ZHY4Y3ZpZ3B3dzBwYm9pZnZidSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3orif2v1B99t8E1SgM/giphy.gif")
+    embed_puja.set_footer(text="¡La oferta sigue subiendo! ¿Alguien da más?")
+
+    await ctx.send(embed=embed_puja)
+
+
+# --- COMANDO: CONTADOR EDITABLE EN TIEMPO REAL (SOLO STAFF) ---
+@bot.command(name="contar")
+@es_staff_por_id()
+async def contar(ctx):
+    if not subasta_activa:
+        await ctx.send("❌ No hay una subasta activa para cronometrar.")
+        return
+
+    mensaje_cronometro = await ctx.send("⏱️ **Iniciando cuenta regresiva de la subasta...**")
+    
+    for tiempo in range(12, 0, -1):
+        if tiempo > 5:
+            await mensaje_cronometro.edit(content=f"⏳ **¡La subasta se va a cerrar! Quedan: {tiempo} segundos...**")
+        else:
+            await mensaje_cronometro.edit(content=f"🚨 **¡ÚLTIMOS SEGUNDOS! Quedan: {tiempo} segundos...**")
+        await asyncio.sleep(1)
+        
+    await mensaje_cronometro.edit(content="🔨 **¡TIEMPO AGOTADO! La subasta se ha cerrado oficialmente.**")
+
+
+# --- COMANDO: DECLARAR GANADOR Y ASIGNAR PAGO (SOLO STAFF) ---
+@bot.command(name="pago")
+@es_staff_por_id()
+async def pago(ctx, ganador: discord.Member):
+    global subasta_activa, ultima_puja, item_en_subasta, dueno_del_item
+    
+    if not subasta_activa:
+        await ctx.send("❌ No hay una subasta activa para cerrar con pago.")
+        return
+        
+    canal_pago = ctx.guild.get_channel(ID_CANAL_PAGO)
+    mencion_canal = canal_pago.mention if canal_pago else "#canal-de-pagos"
+    
+    embed_ganador = discord.Embed(
+        title="🎉 🏆 ¡SUBASTA FINALIZADA COMTEMPORÁNEA! 🏆 🎉",
+        description=(
+            f"¡Felicidades {ganador.mention} por haber ganado la subasta!\n\n"
+            f"📦 **Ítem ganado:** {item_en_subasta}\n"
+            f"💵 **Favor de pagar:** `{ultima_puja:,}` monedas\n"
+            f"👤 **A favor de:** `{dueno_del_item}` (Dueño original)\n"
+            f"📍 **Canal de transferencia:** {mencion_canal}"
+        ),
+        color=0xF1C40F
+    )
+    if ganador.avatar:
+        embed_ganador.set_thumbnail(url=ganador.avatar.url)
+    embed_ganador.set_footer(text=f"Crazy Cats Auctions • ¡Gracias por comerciar con nosotros!")
+    
+    subasta_activa = False  # Apagamos la subasta para habilitar la siguiente lista
+    await ctx.send(embed=embed_ganador)
 # ==================================================
 # EJECUCIÓN INICIAL
 # ==================================================
