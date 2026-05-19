@@ -410,25 +410,24 @@ async def ruleta(ctx):
     await ctx.send(embed=embed_casino, view=view)
 
 
-# --- COMANDO 2: GIRAR LA RULETA Y ANUNCIAR GANADORES (Solo Staff) ---
+# --- COMANDO 2: GIRAR LA RULETA Y ANUNCIAR GANADORES (CORREGIDO) ---
 @bot.command()
 @commands.has_any_role(ROL_STAFF_JUEGO)
 async def girar(ctx):
     global apuestas_ruleta, inscripcion_ruleta_abierta
     
-    if not inscripcion_ruleta_abierta:
+    if not list(apuestas_ruleta.keys()) and inscripcion_ruleta_abierta:
+        # Por seguridad si estás testeando solo, te dejamos girar aunque no haya apuestas largas
+        pass
+    elif not inscripcion_ruleta_abierta:
         await ctx.send("❌ No hay ninguna ruleta activa en este momento. Usa primero `?ruleta`.")
         return
         
-    if not apuestas_ruleta:
-        await ctx.send("❌ Nadie ha hecho ninguna apuesta todavía. ¡Dale un momento a los jugadores!")
-        return
-
-    # Cerramos la mesa
+    # Cerramos la mesa de inmediato
     inscripcion_ruleta_abierta = False
     canal_juego = ctx.channel
 
-    # --- SIMULACIÓN DE GIRO (Efecto animado por texto) ---
+    # --- SIMULACIÓN DE GIRO ---
     embed_giro = discord.Embed(
         title="🎰 • ¡Girando la Ruleta Cósmica!",
         description="### 🔄 El crupier lanza la bola... \n\n`[ 🟢 ] Los números empiezan a correr...`",
@@ -455,11 +454,9 @@ async def girar(ctx):
         aciertos = 0
         pago_texto = []
         
-        # Verificar Color
         if apuesta["color"] == color_ganador:
             aciertos += 1
             pago_texto.append(f"{emoji_color} Color")
-        # Verificar Par/Impar
         if apuesta["tipo"] == tipo_ganador:
             aciertos += 1
             pago_texto.append(f"🔢 {tipo_ganador}")
@@ -469,17 +466,20 @@ async def girar(ctx):
             lista_ganadores.append(f"• {apuesta['nombre']} acertó **{combinaciones}** 🎉")
 
     # --- DISEÑAR EMBED DE RESULTADOS ---
+    # 🌟 CORRECCIÓN AQUÍ: Quitamos las comillas molestas del color para evitar el crash
+    color_final = 0xE74C3C if color_ganador == "Rojo" else 0x2C3E50
+
     embed_resultado = discord.Embed(
         title=f"🎰 • ¡RESULTADO DE LA RULETA!",
         description=f"La bola se ha detenido en el número:\n\n# {emoji_color} **{numero_ganador}** ({color_ganador} y {tipo_ganador})",
-        color=0x9B59B6 if color_ganador == "Rojo" else "0x34495E"
+        color=color_final
     )
     
     txt_ganadores = "\n".join(lista_ganadores) if lista_ganadores else "*La casa gana... Nadie acertó sus apuestas esta ronda. 🏛️*"
     embed_resultado.add_field(name="💰 GANADORES DE LA RONDA", value=txt_ganadores, inline=False)
     embed_resultado.set_footer(text=f"🎰 {ctx.guild.name} • ¡Suerte para la próxima!")
     
-    # Editamos el mensaje del giro con el resultado definitivo
+    # Editamos el mensaje original para mostrar el flamante ganador
     await msg_giro.edit(embed=embed_resultado)
 
 
@@ -490,11 +490,10 @@ async def casino_errors(ctx, error):
     if isinstance(error, commands.MissingAnyRole):
         await ctx.send(f"❌ {ctx.author.mention}, solo el Staff autorizado puede operar las mesas de juego de la ruleta.")
 
-        # ==================================================
-# 🎲 SISTEMA DE JUEGO: GRAN LOTERÍA AUTOMÁTICA (9 FIGURAS)
+       # ==================================================
+# 🎲 SISTEMA DE JUEGO: GRAN LOTERÍA INTERACTIVA (9 FIGURAS)
 # ==================================================
 
-# 🌟 BARAJA AMPLIADA A 30 CARTAS (Para soportar cartones de 9 figuras sin repetirse tanto)
 BARAJA_LOTERIA = [
     "🐓 El Gallo", "😈 El Diablito", "🌙 La Luna", "👑 La Corona", 
     "🐟 El Pescado", "🌴 La Palmera", "💀 La Calavera", "❤️ El Corazón",
@@ -506,67 +505,71 @@ BARAJA_LOTERIA = [
 ]
 
 # Variables globales para controlar la partida
+# Estructura de cartones_jugadores: { ID_USUARIO: {"figuras": [...], "marcadas": [...]} }
 cartones_jugadores = {}
 cartas_cantadas = []
+carta_actual = None
 juego_activo = False
 
-class PanelLoteria(discord.ui.View):
+# --- INTERFAZ DINÁMICA DE BOTONES (Se reusa en la inscripción y en cada carta) ---
+class InterfazLoteria(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
 
-    # Botón 1: El registro secreto
-    @discord.ui.button(label="✨ Obtener Cartón", style=discord.ButtonStyle.primary, custom_id="btn_unirse")
-    async def unirse(self, interaction: discord.Interaction, button: discord.ui.Button):
-        global juego_activo
-        if juego_activo:
-            await interaction.response.send_message("❌ ¡Demasiado tarde! La lotería ya está en marcha.", ephemeral=True)
-            return
-            
-        user_id = interaction.user.id
-        
-        # Si ya tiene un cartón, no le damos uno nuevo, solo se lo recordamos
-        if user_id in cartones_jugadores:
-            format_carton = "\n".join([f"• {figura}" for figura in cartones_jugadores[user_id]])
-            await interaction.response.send_message(
-                f"⚠️ ¡Ya estás inscrito! Tu cartón asignado es:\n{format_carton}", 
-                ephemeral=True
-            )
-            return
-        
-        # 🌟 NUEVO CAMBIO: Le generamos un cartón único de 9 figuras al azar
-        carton = random.sample(BARAJA_LOTERIA, 9)
-        cartones_jugadores[user_id] = carton
-        
-        format_carton = "\n".join([f"• {figura}" for figura in carton])
-        await interaction.response.send_message(
-            f"✅ **¡Te has inscrito!**\n\nEste es tu cartón de 9 figuras para la ronda:\n{format_carton}\n\n¡Presta atención al chat!", 
-            ephemeral=True
-        )
-
-    # Botón 2: El recordatorio efímero del cartón (Para que lo revisen cuando quieran)
+    # 📋 Botón: Ver mi Cartón (Muestra el progreso con emojis de verificación)
     @discord.ui.button(label="📋 Ver mi Cartón", style=discord.ButtonStyle.blurple, custom_id="btn_ver_carton")
     async def ver_carton(self, interaction: discord.Interaction, button: discord.ui.Button):
         user_id = interaction.user.id
-        
         if user_id not in cartones_jugadores:
-            await interaction.response.send_message("❌ Aún no has solicitado un cartón. Presiona primero **✨ Obtener Cartón**.", ephemeral=True)
+            await interaction.response.send_message("❌ No estás inscrito en esta partida. ¡Dale al botón azul de la inscripción original!", ephemeral=True)
             return
             
-        carton_usuario = cartones_jugadores[user_id]
-        format_carton = "\n".join([f"• {figura}" for figura in carton_usuario])
+        datos = cartones_jugadores[user_id]
+        format_carton = []
         
+        for figura in datos["figuras"]:
+            # Si ya la marcó, le ponemos una palomita verde, si no, un punto
+            status = "✅" if figura in datos["marcadas"] else "🔹"
+            format_carton.append(f"{status} {figura}")
+            
+        lista_visual = "\n".join(format_carton)
         await interaction.response.send_message(
-            f"📋 **Tus 9 figuras asignadas son:**\n{format_carton}\n\n*Recuerda presionar '¡LOTERÍA!' cuando el bot cante todas estas.*", 
+            f"📋 **Progreso de tu cartón:**\n{lista_visual}\n\n*¡Presiona '📌 Marcar Figura' cuando salga una tuya!*", 
             ephemeral=True
         )
 
-    # Botón 3: El reclamo de victoria
+    # 📌 Botón Nuevo: Marcar la figura actual en juego
+    @discord.ui.button(label="📌 Marcar Figura", style=discord.ButtonStyle.primary, custom_id="btn_marcar_figura")
+    async def marcar_figura(self, interaction: discord.Interaction, button: discord.ui.Button):
+        global juego_activo, carta_actual
+        if not juego_activo or not carta_actual:
+            await interaction.response.send_message("❌ El juego no ha comenzado o no hay una carta activa para marcar.", ephemeral=True)
+            return
+
+        user_id = interaction.user.id
+        if user_id not in cartones_jugadores:
+            await interaction.response.send_message("❌ No estás participando en esta partida.", ephemeral=True)
+            return
+
+        datos = cartones_jugadores[user_id]
+        
+        # Verificar si el usuario tiene la carta actual y no la ha marcado antes
+        if carta_actual in datos["figuras"]:
+            if carta_actual not in datos["marcadas"]:
+                datos["marcadas"].append(carta_actual)
+                await interaction.response.send_message(f"🎯 ¡Anotado! Has marcado **{carta_actual}** en tu cartón.", ephemeral=True)
+            else:
+                await interaction.response.send_message(f"⚠️ Ya habías marcado **{carta_actual}** anteriormente.", ephemeral=True)
+        else:
+            await interaction.response.send_message(f"❌ La carta **{carta_actual}** no está en tu cartón. ¡Presta más atención!", ephemeral=True)
+
+    # 📢 Botón: Reclamar Victoria
     @discord.ui.button(label="📢 ¡LOTERÍA!", style=discord.ButtonStyle.success, custom_id="btn_loteria")
     async def gritar(self, interaction: discord.Interaction, button: discord.ui.Button):
-        global juego_activo, cartas_cantadas, cartones_jugadores
+        global juego_activo, cartones_jugadores
         
         if not juego_activo:
-            await interaction.response.send_message("❌ El juego aún no ha comenzado formalmente.", ephemeral=True)
+            await interaction.response.send_message("❌ La lotería no está activa.", ephemeral=True)
             return
 
         user_id = interaction.user.id
@@ -574,20 +577,132 @@ class PanelLoteria(discord.ui.View):
             await interaction.response.send_message("❌ No estás participando en esta partida.", ephemeral=True)
             return
             
-        carton_usuario = cartones_jugadores[user_id]
-        # Verifica estrictamente si las 9 figuras ya salieron en el chat
-        completo = all(carta in cartas_cantadas for carta in carton_usuario)
+        datos = cartones_jugadores[user_id]
+        
+        # El sistema valida si de verdad tiene las 9 marcadas Y si esas figuras realmente fueron cantadas
+        completo = len(datos["marcadas"]) == 9 and all(f in cartas_cantadas for f in datos["marcadas"])
         
         if completo:
-            juego_activo = False  # Detiene el bucle de cartas automáticamente
+            juego_activo = False  
             await interaction.response.send_message(
-                f"🎉 👑 **¡TENEMOS UN GANADOR!** {interaction.user.mention} completó sus 9 figuras y cantó ¡LOTERÍA! legítimamente. Su cartón fue verificado con éxito. ¡Felicidades! 🏆"
+                f"🎉 👑 **¡TENEMOS UN GANADOR!** {interaction.user.mention} llenó sus 9 casillas perfectamente y cantó ¡LOTERÍA! legítimamente. ¡Felicidades! 🏆"
             )
             self.stop()
         else:
-            await interaction.response.send_message("❌ **¡Falsa alarma!** Aún te faltan figuras por marcar en tu cartón de 9. Sigue atento.", ephemeral=True)
+            await interaction.response.send_message("❌ **¡Falsa alarma!** Aún no has marcado tus 9 figuras válidas en el cartón. ¡Sigue revisando!", ephemeral=True)
 
 
+# --- INTERFAZ EXCLUSIVA PARA EL BOTÓN DE INSCRIPCIÓN ---
+class PanelInscripcion(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label="✨ Obtener Cartón (9 Figuras)", style=discord.ButtonStyle.primary, custom_id="btn_unirse_inicial")
+    async def unirse(self, interaction: discord.Interaction, button: discord.ui.Button):
+        global juego_activo
+        if juego_activo:
+            await interaction.response.send_message("❌ ¡Demasiado tarde! Las cartas ya se están cantando.", ephemeral=True)
+            return
+            
+        user_id = interaction.user.id
+        
+        if user_id in cartones_jugadores:
+            format_carton = "\n".join([f"• {f}" for f in cartones_jugadores[user_id]["figuras"]])
+            await interaction.response.send_message(f"⚠️ Ya estás inscrito. Tu cartón es:\n{format_carton}", ephemeral=True)
+            return
+        
+        # Asignamos el cartón vacío de marcas iniciales
+        carton_aleatorio = random.sample(BARAJA_LOTERIA, 9)
+        cartones_jugadores[user_id] = {"figuras": carton_aleatorio, "marcadas": []}
+        
+        format_carton = "\n".join([f"• {f}" for f in carton_aleatorio])
+        await interaction.response.send_message(
+            f"✅ **¡Inscrito con éxito!**\n\nTu cartón secreto de 9 figuras es:\n{format_carton}\n\n¡Cada carta que mande el bot llevará los botones abajo para interactuar!", 
+            ephemeral=True
+        )
+
+
+# --- COMANDO 1: ABRIR LA MESA DE INSCRIPCIÓN (Solo Staff) ---
+@bot.command()
+@commands.has_any_role(ROL_STAFF_JUEGO)
+async def loteria(ctx):
+    global juego_activo, cartas_cantadas, cartones_jugadores, carta_actual
+    
+    cartones_jugadores.clear()
+    cartas_cantadas.clear()
+    carta_actual = None
+    juego_activo = False
+    
+    embed = discord.Embed(
+        title="🎉 • ¡Gran Lotería de Crazy Cats!",
+        description=(
+            "**¡Preparen sus frijolitos!** 🐾\n\n"
+            "Presiona el botón de abajo para registrarte y recibir tu **cartón secreto con 9 figuras**.\n"
+            "Cuando todos estén inscritos, un moderador usará `?cantar` para lanzar el juego automático."
+        ),
+        color=0xE67E22
+    )
+    embed.set_footer(text=f"🌙 {ctx.guild.name} • Fase de Registros")
+    
+    await ctx.send(embed=embed, view=PanelInscripcion())
+
+
+# --- COMANDO 2: CANTAR AUTOMÁTICAMENTE CON BOTONES INYECTADOS (Solo Staff) ---
+@bot.command()
+@commands.has_any_role(ROL_STAFF_JUEGO)
+async def cantar(ctx):
+    global juego_activo, cartas_cantadas, cartones_jugadores, carta_actual
+    
+    if juego_activo:
+        await ctx.send("❌ Ya hay una ronda en proceso.")
+        return
+        
+    if not cartones_jugadores:
+        await ctx.send("❌ No hay jugadores inscritos todavía.")
+        return
+
+    juego_activo = True
+    await ctx.send("🔥 **¡Se barajea el mazo! Las cartas saldrán automáticamente con botones incorporados...**")
+    await asyncio.sleep(4)
+
+    mazo_mezclado = BARAJA_LOTERIA.copy()
+    random.shuffle(mazo_mezclado)
+
+    # Ciclo de juego
+    for carta in mazo_mezclado:
+        if not juego_activo: 
+            break  # Freno instantáneo si alguien le da clic a ¡LOTERÍA! y gana legítimamente
+            
+        carta_actual = carta
+        cartas_cantadas.append(carta)
+        
+        embed_carta = discord.Embed(
+            title="🃏 • ¡Se va y se corre con...!",
+            description=f"# 📢 **{carta}**",
+            color=0x2ECC71
+        )
+        historial = ", ".join(cartas_cantadas[-4:])
+        embed_carta.add_field(name="📋 Últimas llamadas", value=f"`{historial}`", inline=False)
+        embed_carta.set_footer(text=f"Crazy Cats • Cartas cantadas: {len(cartas_cantadas)}/30")
+        
+        # 🌟 LA MAGIA AQUÍ: Inyectamos la InterfazLoteria() completa en cada mensaje cantado
+        view_actual = InterfazLoteria()
+        await ctx.send(embed=embed_carta, view=view_actual)
+        
+        # ⏳ 5 segundos de colchón para que les dé tiempo de reaccionar y darle clic al botón
+        await asyncio.sleep(5)
+
+    if juego_activo:
+        juego_activo = False
+        await ctx.send("🃏 **¡Se terminó el mazo!** El juego ha concluido sin ganadores esta vez.")
+
+
+# 🛑 CONTROLADOR DE ERRORES
+@loteria.error
+@cantar.error
+async def loteria_errors(ctx, error):
+    if isinstance(error, commands.MissingAnyRole):
+        await ctx.send(f"❌ {ctx.author.mention}, solo el Staff autorizado puede gestionar la lotería.")
 # --- COMANDO 1: ABRIR LA MESA (Solo Staff) ---
 @bot.command()
 @commands.has_any_role(ROL_STAFF_JUEGO)
@@ -609,7 +724,7 @@ async def loteria(ctx):
     )
     embed.set_footer(text=f"🌙 {ctx.guild.name} • Modo Inscripción")
     
-    view = PanelLoteria()
+    view = PanelInscripcion()
     await ctx.send(embed=embed, view=view)
 
 
