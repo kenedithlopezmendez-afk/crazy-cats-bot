@@ -869,16 +869,16 @@ ID_CANAL_PAGO = 1422336904308719667    # ID de tu canal de pagos o reclamos
 
 # Modifica los datos de cada lista aquí adentro antes del evento:
 SUBASTAS_DATA = {
-    1: {"item": "🎒 Lingote de Magmaria", "dueno": "<@822895885566345216>", "precio_inicial": "5 emp", "imagen": "https://i.imgur.com/Ejemplo1.png"},
-    2: {"item": "👑 Corona Imperial (Ítem)", "dueno": "MishiStaff", "precio_inicial": 10000, "imagen": ""},
-    3: {"item": "🐱 Gato Místico Level 100", "dueno": "Dawee", "precio_inicial": 7500, "imagen": ""},
-    4: {"item": "📦 Caja de Suministros Épica", "dueno": "Moderador1", "precio_inicial": 3000, "imagen": ""},
-    5: {"item": "💎 500 Gemas Nekotina", "dueno": "Dawee", "precio_inicial": 15000, "imagen": ""},
-    6: {"item": "🎫 Ticket de Cambio de Nombre", "dueno": "StaffCat", "precio_inicial": 2000, "imagen": ""},
-    7: {"item": "⚔️ Espada Legendaria", "dueno": "Dawee", "precio_inicial": 8000, "imagen": ""},
-    8: {"item": "🍏 Manzana Dorada x5", "dueno": "AdminMishi", "precio_inicial": 4000, "imagen": ""},
-    9: {"item": "⚡ Poción de Experiencia x10", "dueno": "Dawee", "precio_inicial": 6000, "imagen": ""},
-    10: {"item": "🔥 Súper Pack Sorpresa Final", "dueno": "Dawee", "precio_inicial": 25000, "imagen": ""}
+    1: {"item": "🎒 Shiny Congelado x110", "dueno": "<@753471584500580365>", "precio_inicial": "emp", "imagen": "https://i.imgur.com/Ejemplo1.png"},
+    2: {"item": "👑 Manzana Corrompida x20", "dueno": "<@1454737746152128698>", "precio_inicial": "emp", "imagen": ""},
+    3: {"item": "🐱 Huevo de Laplace y Solace", "dueno": "<@806387649245872139>", "precio_inicial": "5 emp", "imagen": ""},
+    4: {"item": "📦 Canastita III y 50 loot box", "dueno": "<@1071566219783716904>", "precio_inicial": "5 emp", "imagen": ""},
+    5: {"item": "💎 Canastita IIi y 15 Picas Shiva", "dueno": "<@1071566219783716904>", "precio_inicial": "5 emp", "imagen": ""},
+    6: {"item": "🎫 Calavera Pirata x3", "dueno": "<@1012552938520060005>", "precio_inicial": "5 emp", "imagen": ""},
+    7: {"item": "⚔️ Huevo de Santa Slime y Canastita III", "dueno": "<@1058990006930259999>", "precio_inicial": "5 emp", "imagen": ""},
+    8: {"item": "🍏 Lingote de Magmaria", "dueno": "<@1431792426435088557>", "precio_inicial": "5 emp", "imagen": ""},
+    9: {"item": "⚡ Haste Scroll x115", "dueno": "<@837765625656508447>", "precio_inicial": "emp", "imagen": ""},
+    10: {"item": "🔥 Pez Shiny x105", "dueno": "<@1477848205570867244>", "precio_inicial": "emp", "imagen": ""}
 }
 
 # Variables de control de memoria interna
