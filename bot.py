@@ -308,21 +308,30 @@ async def plataformas(ctx):
         ronda_actual += 1
         await asyncio.sleep(5)
 
-    # --- FASE FINAL: DETERMINAR AL GANADOR DEFINITIVO (¡AQUÍ QUEDÓ REPARADO!) ---
+    # --- FASE FINAL: DETERMINAR AL GANADOR DEFINITIVO (¡VERSIÓN BLINDADA!) ---
     if len(pilotos) == 1:
-        ganador = pilotos  # 👑 Extraemos el usuario real de la lista usando
+        ganador = pilotos  # Sacamos al usuario real de la lista
+        
         embed_victoria = discord.Embed(
             title="👑 ¡TENEMOS UN GANADOR CÓSMICO!",
             description=f"Felicitaciones supremas para {ganador.mention}.\n\n¡Ha logrado esquivar todos los colapsos y es el único sobreviviente del torneo de plataformas! 🎉",
             color=0xF1C40F
         )
         
-        # Obtenemos el avatar de manera segura
-        if ganador.display_avatar:
-            embed_victoria.set_thumbnail(url=ganador.display_avatar.url)
-            
+        # 🛡️ OBTENCIÓN ULTRA SEGURA DEL AVATAR (Evita crasheos ocultos)
+        try:
+            if ganador.avatar:
+                embed_victoria.set_thumbnail(url=ganador.avatar.url)
+            else:
+                embed_victoria.set_thumbnail(url=ganador.default_avatar.url)
+        except Exception:
+            pass # Si falla el avatar por cualquier cosa, el bot continúa sin trabarse
+
         embed_victoria.set_footer(text=f"🌙 {ctx.guild.name} • Fin del Desafío")
+        
+        # Enviamos el mensaje al canal
         await canal_juego.send(content=f"🏆 {ganador.mention}", embed=embed_victoria)
+        
     else:
         await canal_juego.send("💀 **Colapso Absoluto:** Todos los pilotos cayeron al vacío en la última ronda. No quedó nadie vivo para reclamar la victoria.")
 
