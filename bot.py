@@ -70,7 +70,7 @@ async def verificar_y_enviar_alerta(message):
     # Mapeo de zonas según las palabras clave secundarias
     salas = {
         "aventura: magma": {
-            "titulo": "🌋 ¡SALA DEL INFIERNO DETECTADA XD!",
+            "titulo": "🌋 ¡SALA DEL INFIERNO DETECTADA!",
             "descripcion": "🔥 El calor aumenta, ¡prepara tus mascotas y únete para ir al infierno!",
             "color": 0xFF5500
         },
