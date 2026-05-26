@@ -818,7 +818,7 @@ async def subastas(ctx):
 ID_CANAL_LOGS = 1450135217493901322  # ⬅️ REEMPLAZA CON EL ID DE TU CANAL PRIVADO DE LOGS/STAFF
 
 # Lista de palabras prohibidas (pon las palabras en minúsculas)
-PALABRAS_PROHIBIDAS = ["puta", "pendejo", "pendeja", "gay", "puto", "nigga", "sexo", "hdsptm", "pene", "pito", "pdjo", "pndjo", "pndja", "paja", "pajero", "pajera", "vrg", "verga", "perra", "zorra", "prostituta", "perrita", "alv", "therian", "joto", "jotos", "mierda", "pendejos", "ptm", "pelas", "pela", "pt", "pisado", "panocha", "cerote", "pndj", "homosexual", "mrd", "mrda", "burro", "burra", "coger", "cogen", "sexo", "sexual", "lpm", "chinga tu madre", "madre", "maldito", "maldita", "verg", "mlp", "coño", "chingada", "prra", "ctm", "fuck", "fck", "hdp", "aborto", "pinche", "malparido", "malparida", "pudrete"] 
+PALABRAS_PROHIBIDAS = ["puta", "pendejo", "pendeja", "gay", "puto", "nigga", "sexo", "hdsptm", "pene", "pito", "pdjo", "pndjo", "pndja", "paja", "pajero", "pajera", "vrg", "verga", "perra", "zorra", "prostituta", "perrita", "alv", "therian", "joto", "jotos", "mierda", "pendejos", "ptm", "pelas", "pela", "pt", "pisado", "panocha", "cerote", "pndj", "homosexual", "mrd", "mrda", "burro", "burra", "coger", "cogen", "sexo", "sexual", "lpm", "chinga tu madre", "madre", "maldito", "maldita", "verg", "mlp", "coño", "chingada", "prra", "ctm", "fuck", "fck", "hdp", "aborto", "pta", "malparido", "malparida", "pudrete"] 
 
 @bot.event
 async def on_message(message):
