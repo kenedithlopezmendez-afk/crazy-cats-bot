@@ -6,6 +6,7 @@ import os
 import logging
 import asyncio  # 🌟 ¡Agregado para manejar los tiempos del juego!
 import random   # 🌟 ¡Agregado para la aleatoriedad de las plataformas!
+import datetime
 
 # Configuración de logs básica para ver movimientos en Render
 logging.basicConfig(level=logging.INFO)
@@ -426,6 +427,124 @@ async def ban(ctx, member: discord.Member, *, reason="No especificada"):
     await ctx.message.add_reaction("✅")
     await ctx.send(f"🔨 **{member.display_name}** fue baneado permanentemente. Razón: *{reason}*")
 
+    import datetime
+
+# --- COMANDO: SILENCIAR USUARIO (MUTE / TIMEOUT) ---
+@bot.command(name="mute", aliases=["silenciar", "timeout"])
+@es_staff_por_id()  # Tu candado de seguridad para Staff
+async def mute(ctx, miembro: discord.Member = None, tiempo: str = None, *, razon: str = "No especificada"):
+    """Silencia a un usuario usando el Timeout nativo de Discord (Ej: Dmute @User 10m Razón)"""
+    
+    if not miembro or not tiempo:
+        await ctx.send("⚠️ **Uso correcto:** `Dmute @usuario <tiempo><m/h/d> [razón]`\n*Ejemplo:* `Dmute @mishi 10m Comportamiento indebido`", delete_after=10)
+        return
+
+    # Verificar que el Staff no intente automutearse o mutear al bot
+    if miembro == ctx.author or miembro.bot:
+        await ctx.send("❌ No puedes silenciar a este usuario.", delete_after=5)
+        return
+
+    # Convertir el tiempo (m = minutos, h = horas, d = días)
+    unidad = tiempo[-1].lower()
+    try:
+        cantidad = int(tiempo[:-1])
+    except ValueError:
+        await ctx.send("⚠️ El formato de tiempo es inválido. Usa números seguidos de `m` (minutos), `h` (horas) o `d` (días).", delete_after=7)
+        return
+
+    if unidad == "m":
+        duracion = datetime.timedelta(minutes=cantidad)
+        tiempo_texto = f"{cantidad} Minuto(s)"
+    elif unidad == "h":
+        duracion = datetime.timedelta(hours=cantidad)
+        tiempo_texto = f"{cantidad} Hora(s)"
+    elif unidad == "d":
+        duracion = datetime.timedelta(days=cantidad)
+        tiempo_texto = f"{cantidad} Día(s)"
+    else:
+        await ctx.send("⚠️ Unidad de tiempo desconocida. Usa `m`, `h` o `d`.", delete_after=7)
+        return
+
+    # Límite máximo de Discord para un Timeout es de 28 días
+    if duracion > datetime.timedelta(days=28):
+        await ctx.send("❌ Discord no permite aislar a un usuario por más de 28 días.", delete_after=5)
+        return
+
+    # 🤫 APLICAR TIMEOUT
+    try:
+        await miembro.timeout(duracion, reason=razon)
+    except discord.Forbidden:
+        await ctx.send("❌ No tengo permisos suficientes para silenciar a este miembro (puede que tenga un rol más alto que yo).", delete_after=5)
+        return
+
+    # 📥 1. ENVIAR MD AL INFRACTOR (Aviso privado)
+    try:
+        embed_md = discord.Embed(
+            title="🛑 • HAS SIDO SILENCIADO • 🛑",
+            description=f"Has recibido una sanción de tiempo en **{ctx.guild.name}**.",
+            color=0xE74C3C,
+            timestamp=datetime.datetime.utcnow()
+        )
+        embed_md.add_field(name="⏳ Duración:", value=tiempo_texto, inline=True)
+        embed_md.add_field(name="💬 Razón:", value=razon, inline=False)
+        embed_md.set_footer(text="Por favor, cumple la sanción y respeta las normas.")
+        await miembro.send(embed=embed_md)
+    except discord.Forbidden:
+        pass  # Si el usuario tiene los MD cerrados, el bot no crashea
+
+    # 📝 2. ENVIAR AVISO PÚBLICO EN EL CANAL
+    embed_canal = discord.Embed(
+        title="💥 • USUARIO AISLADO • 💥",
+        description=f"El Staff ha aplicado un correctivo temporal en el servidor.",
+        color=0xE67E22
+    )
+    embed_canal.add_field(name="👤 Infractor:", value=miembro.mention, inline=True)
+    embed_canal.add_field(name="⏳ Tiempo:", value=tiempo_texto, inline=True)
+    embed_canal.add_field(name="🛡️ Moderador:", value=ctx.author.mention, inline=True)
+    embed_canal.add_field(name="📝 Razón:", value=razon, inline=False)
+    
+    if miembro.avatar:
+        embed_canal.set_thumbnail(url=miembro.avatar.url)
+    else:
+        embed_canal.set_thumbnail(url=miembro.default_avatar.url)
+
+    await ctx.send(embed=embed_canal)
+
+
+# --- COMANDO: RETIRAR SILENCIO (UNMUTE) ---
+@bot.command(name="unmute", aliases=["desmutear", "untimeout"])
+@es_staff_por_id()
+async def unmute(ctx, miembro: discord.Member = None, *, razon: str = "Retirado por el Staff"):
+    """Remueve el silencio de un usuario antes de tiempo (Ej: Dunmute @User Razón)"""
+    
+    if not miembro:
+        await ctx.send("⚠️ **Uso correcto:** `Dunmute @usuario [razón]`", delete_after=10)
+        return
+
+    # Quitar el timeout pasándole None como duración
+    try:
+        await miembro.timeout(None, reason=razon)
+    except discord.Forbidden:
+        await ctx.send("❌ No tengo permisos para quitarle el silencio a este miembro.", delete_after=5)
+        return
+
+    # Aviso estético en el canal
+    embed_unmute = discord.Embed(
+        title="✨ • SILENCIO RETIRADO • ✨",
+        description=f"Se le han devuelto los permisos de habla a {miembro.mention}.",
+        color=0x2ECC71
+    )
+    embed_unmute.add_field(name="👤 Usuario:", value=miembro.mention, inline=True)
+    embed_unmute.add_field(name="🛡️ Moderador:", value=ctx.author.mention, inline=True)
+    embed_unmute.add_field(name="📝 Motivo:", value=razon, inline=False)
+    
+    if miembro.avatar:
+        embed_unmute.set_thumbnail(url=miembro.avatar.url)
+    else:
+        embed_unmute.set_thumbnail(url=miembro.default_avatar.url)
+
+    await ctx.send(embed=embed_unmute)
+
 
 # ==================================================
 # 🚨 GESTOR UNIVERSAL DE ERRORES (ACCESO DENEGADO)
@@ -692,6 +811,60 @@ async def subastas(ctx):
 
     # Envía el contenido del ping primero y el embed pegado abajo
     await ctx.send(content=ping_texto, embed=embed)
+
+    import datetime
+
+# 🤫 CONFIGURACIÓN DEL FILTRO DE MODERACIÓN
+ID_CANAL_LOGS = 1450135217493901322  # ⬅️ REEMPLAZA CON EL ID DE TU CANAL PRIVADO DE LOGS/STAFF
+
+# Lista de palabras prohibidas (pon las palabras en minúsculas)
+PALABRAS_PROHIBIDAS = ["puta", "pendejo", "pendeja", "gay", "puto", "nigga", "sexo", "hdsptm", "pene", "pito", "pdjo", "pndjo", "pndja", "paja", "pajero", "pajera", "vrg", "verga", "perra", "zorra", "prostituta", "perrita", "alv", "therian", "joto", "jotos", "mierda", "pendejos"] 
+
+@bot.event
+async def on_message(message):
+    # 🚨 Regla de oro: Ignorar los mensajes del propio bot para evitar bucles infinitos
+    if message.author.bot:
+        return
+
+    # Convertimos todo el texto a minúsculas para que no evadan el filtro usando Mayúsculas
+    contenido_minusculas = message.content.lower()
+
+    # Verificar si alguna palabra prohibida está en el mensaje
+    if any(palabra in contenido_minusculas for palabra in PALABRAS_PROHIBIDAS):
+        
+        # 1. Intentar borrar el mensaje ofensivo inmediatamente
+        try:
+            await message.delete()
+        except discord.Forbidden:
+            print("⚠️ El bot no tiene permisos de 'Gestionar Mensajes' para borrar la grosería.")
+        except discord.NotFound:
+            pass
+
+        # 2. Enviar la llamada de atención en el chat (se auto-elimina en 6 segundos)
+        llamada_atencion = f"⚠️ {message.author.mention}, **¡Cuida tu lenguaje!** En **Crazy Cats** mantenemos un ambiente sano y respetuoso. Tu mensaje ha sido eliminado."
+        await message.channel.send(llamada_atencion, delete_after=6)
+
+        # 3. Enviar el reporte estético (Log) al canal del Staff
+        canal_logs = message.guild.get_channel(ID_CANAL_LOGS)
+        if canal_logs:
+            embed_log = discord.Embed(
+                title="🚨 • SISTEMA ANTI-PROFANIDAD • 🚨",
+                description=f"Se ha interceptado y eliminado un mensaje con lenguaje inapropiado.",
+                color=0xE74C3C, # Rojo de alerta
+                timestamp=datetime.datetime.utcnow()
+            )
+            embed_log.add_field(name="👤 Usuario infractor:", value=f"{message.author.mention} (`{message.author.id}`)", inline=True)
+            embed_log.add_field(name="📍 Canal:", value=message.channel.mention, inline=True)
+            embed_log.add_field(name="💬 Mensaje original enviado:", value=f"||{message.content}||", inline=False) # Guardado bajo spoiler por si es muy fuerte
+            embed_log.set_footer(text="Crazy Cats Security System")
+            
+            if message.author.avatar:
+                embed_log.set_thumbnail(url=message.author.avatar.url)
+
+            await canal_logs.send(embed=embed_log)
+
+    # 💠 IMPORTANTE: Esta línea permite que tus otros comandos normales (como Dplataformas, Duno, etc.) sigan funcionando perfectamente
+    await bot.process_commands(message)
 # ==================================================
 # EJECUCIÓN INICIAL
 # ==================================================
