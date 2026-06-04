@@ -815,7 +815,7 @@ async def subastas(ctx):
     import datetime
 
 # 🤫 CONFIGURACIÓN DEL FILTRO DE MODERACIÓN
-ID_CANAL_LOGS = 1450135217493901322  # ⬅️ REEMPLAZA CON EL ID DE TU CANAL PRIVADO DE LOGS/STAFF
+ID_CANAL_LOGS = 926513579652431934  # ⬅️ REEMPLAZA CON EL ID DE TU CANAL PRIVADO DE LOGS/STAFF
 
 # Lista de palabras prohibidas (pon las palabras en minúsculas)
 PALABRAS_PROHIBIDAS = ["puta", "pendejo", "pendeja", "gay", "puto", "nigga", "sexo", "hdsptm", "pene", "pdjo", "pndjo", "pndja", "paja", "pajero", "pajera", "vrg", "verga", "perra", "zorra", "prostituta", "perrita", "pvta", "therian", "joto", "jotos", "mierda", "pendejos", "ptm", "pelas", "pela", "pvto", "pisado", "panocha", "cerote", "pndj", "homosexual", "mrd", "mrda", "burro", "burra", "coger", "cogen", "sexo", "sexual", "maldito", "maldita", "coño", "chingada", "prra", "fuck", "fck", "hdp", "aborto", "malparido", "malparida", "pudrete"] 
