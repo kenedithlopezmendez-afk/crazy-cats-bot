@@ -865,6 +865,49 @@ async def on_message(message):
 
     # 💠 IMPORTANTE: Esta línea permite que tus otros comandos normales (como Dplataformas, Duno, etc.) sigan funcionando perfectamente
     await bot.process_commands(message)
+
+    # 👑 ID PERSONAL DEL CREADOR DEL BOT
+ID_CREADOR_BOT = 1445941380315611146  # ⬅️ REEMPLAZA CON TU ID DE DISCORD
+
+# --- COMANDO: SOBRE EL BOT Y DUEÑOS ---
+@bot.command(name="creador", aliases=["dueño", "about", "desarrollador"])
+async def creador(ctx):
+    """Muestra la información del creador del bot y del dueño del servidor"""
+    
+    # 1. Obtener automáticamente al dueño del servidor de Discord
+    dueno_server = ctx.guild.owner
+    
+    # 2. Obtener al creador del bot usando tu ID
+    creador_bot = await bot.fetch_user(ID_CREADOR_BOT)
+    
+    # 3. Crear el Embed estético al estilo Crazy Cats
+    embed = discord.Embed(
+        title="✨ • ¡CONOCE A MIS CREADORES! • ✨",
+        description="A continuación te presento a las mentes maastras detrás de esta gran comunidad y de mi programación:",
+        color=0x9B59B6  # Color morado estético
+    )
+    
+    # Campo del Creador del Bot
+    embed.add_field(
+        name="🛠️ Creador & Desarrollador del Bot:",
+        value=f"{creador_bot.mention} (`{creador_bot.name}`)\n*¡Quien me dio vida y programó todos mis minijuegos!*",
+        inline=False
+    )
+    
+    # Campo del Dueño del Servidor
+    embed.add_field(
+        name="👑 Dueño del Servidor:",
+        value=f"{dueno_server.mention} (`{dueno_server.name}`)\n*El líder supremo de {ctx.guild.name}.*",
+        inline=False
+    )
+    
+    embed.set_footer(text=f"{ctx.guild.name} Security & Game Bot • Versión 2.0")
+    
+    # Usar el avatar del bot para la foto miniatura
+    if bot.user.avatar:
+        embed.set_thumbnail(url=bot.user.avatar.url)
+        
+    await ctx.send(embed=embed)
 # ==================================================
 # EJECUCIÓN INICIAL
 # ==================================================
