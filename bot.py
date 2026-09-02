@@ -883,7 +883,7 @@ async def creador(ctx):
     # 3. Crear el Embed estético al estilo Crazy Cats
     embed = discord.Embed(
         title="✨ • ¡CONOCE A MIS CREADORES! • ✨",
-        description="A continuación te presento a las mentes maastras detrás de esta gran comunidad y de mi programación:",
+        description="A continuación te presento a las mentes maestras detrás de esta gran comunidad y de mi programación:",
         color=0x9B59B6  # Color morado estético
     )
     
