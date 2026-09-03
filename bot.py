@@ -821,7 +821,7 @@ async def subastas(ctx):
 ID_CANAL_LOGS = 926513579652431934  # ⬅️ REEMPLAZA CON EL ID DE TU CANAL PRIVADO DE LOGS/STAFF
 
 # Lista de palabras prohibidas (pon las palabras en minúsculas)
-PALABRAS_PROHIBIDAS = ["puta", "pendejo", "pendeja", "gay", "puto", "nigga", "sexo", "hdsptm", "pene", "vrg", "verga", "pvta", "therian", "mierda", "ptm", "pvto", "pisado", "panocha", "cerote",  "homosexual", "mrd", "mrda", "coño", "prra", "fuck", "fck", "hdp", "aborto", "malparido", "malparida", "pudrete"] 
+PALABRAS_PROHIBIDAS = ["puta", "pendejo", "pendeja", "gay", "puto", "mierda"] 
 
 @bot.event
 async def on_message(message):
@@ -907,7 +907,7 @@ async def creador(ctx):
     
     embed.add_field(
         name="👑 Dueño del Servidor:",
-        value=f"{mencion_dueno}\n*La mami de todos los gatitos de {ctx.guild.name}.*",
+        value=f"{mencion_dueno}\n*La mami de todos {ctx.guild.name}.*",
         inline=False
     )
     
