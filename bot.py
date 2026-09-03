@@ -595,7 +595,8 @@ async def comandos(ctx):
             "`Dkick @usuario [razón]` -> Expulsa a un miembro del servidor.\n"
             "`Dban @usuario [razón]` -> Banea permanentemente a un usuario.\n" \
             "`Dmute @usuario [tiempo] [razón]`-> Silencia por algun tiempo a un usuario.\n" \
-            "`Dunmute @usuario [razón]` -> Quita el silencio del mienbro sancionado.\n"
+            "`Dunmute @usuario [razón]` -> Quita el silencio del mienbro sancionado.\n" \
+            "`Dabout -> Muestra quien es owner del servidor y el creador del bot CrazyCats!.\n"
         ),
         inline=False
     )
@@ -900,13 +901,13 @@ async def creador(ctx):
     
     embed.add_field(
         name="🛠️ Creador & Desarrollador del Bot:",
-        value=f"{mencion_creador}\n*¡Quien me dio vida y programó todos mis minijuegos!*",
+        value=f"{mencion_creador}\n*¡Quien me dio vida y programó todos mis comandos y minijuegos!*",
         inline=False
     )
     
     embed.add_field(
         name="👑 Dueño del Servidor:",
-        value=f"{mencion_dueno}\n*El líder supremo de {ctx.guild.name}.*",
+        value=f"{mencion_dueno}\n*La mami de todos los gatitos de {ctx.guild.name}.*",
         inline=False
     )
     
