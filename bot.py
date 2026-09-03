@@ -593,7 +593,9 @@ async def comandos(ctx):
         value=(
             "`Dclear [cantidad]` -> Borra mensajes en masa de forma limpia.\n"
             "`Dkick @usuario [razón]` -> Expulsa a un miembro del servidor.\n"
-            "`Dban @usuario [razón]` -> Banea permanentemente a un usuario."
+            "`Dban @usuario [razón]` -> Banea permanentemente a un usuario.\n" \
+            "`Dmute @usuario [tiempo] [razón]`-> Silencia por algun tiempo a un usuario.\n" \
+            "`Dunmute @usuario [razón]` -> Quita el silencio del mienbro sancionado.\n"
         ),
         inline=False
     )
