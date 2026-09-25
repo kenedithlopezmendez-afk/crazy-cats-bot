@@ -918,43 +918,55 @@ async def creador(ctx):
         
     await ctx.send(embed=embed)
 
-    # 📌 CONFIGURACIÓN DE ALIANZAS
+# 📌 CONFIGURACIÓN DE ALIANZAS
 ID_CANAL_ALIANZAS = 929001649610059846   # ID del canal exclusivo de alianzas
 ID_ROL_ALIADOS = 928883841869951058      # ID del rol autorizado para publicar
 ID_ROL_PING = 951331413788065802         # ID del rol al que el bot le hará ping (@Alianzas Babel)
 
-URL_BANNER_CRAZY = "https://cdn.discordapp.com/attachments/926875893421461594/1428741419178131497/40_sin_titulo_20251017104529.png?ex=6ab7cd23&is=6ab67ba3&hm=86c126130accb2f90d4a9c4ba40e760ca20b50f6111b592c33c416b514f43276&" # Enlace directo de la imagen/banner
+URL_BANNER_CRAZY = "https://cdn.discordapp.com/attachments/926875893421461594/1428741419178131497/40_sin_titulo_20251017104529.png?ex=6ab7cd23&is=6ab67ba3&hm=86c126130accb2f90d4a9c4ba40e760ca20b50f6111b592c33c416b514f43276&"
 
 @bot.event
 async def on_message(message):
-    # Ignorar mensajes enviador por bots
+    # 1. Ignorar mensajes enviados por bots
     if message.author.bot:
         return
 
-    # Verificar si el mensaje se envió en el canal correcto
+    # 2. Verificar si el mensaje se envió en el canal correcto
     if message.channel.id == ID_CANAL_ALIANZAS:
         
-        # Verificar si el usuario tiene el rol autorizado
+        # 3. Verificar si el usuario tiene el rol autorizado
         rol_aliado = message.guild.get_role(ID_ROL_ALIADOS)
         if rol_aliado and rol_aliado in message.author.roles:
             
-            # Obtener el rol que se va a mecionar/pingear
+            # 🔍 4. VALIDACIÓN DE PLANTILLA
+            # Convertimos el mensaje a minúsculas para evaluar palabras clave de la plantilla
+            contenido = message.content.lower()
+            
+            # Comprobamos que incluya términos típicos de la plantilla (puedes ajustar estas palabras)
+            es_plantilla = "babel" in contenido or "link:" in contenido or "discord.com/invite" in contenido or "https://" in contenido
+            
+            # Si NO cumple con ser una plantilla, el bot ignora el mensaje y no hace nada
+            if not es_plantilla:
+                await bot.process_commands(message)
+                return
+
+            # --- SI ES UNA PLANTILLA, PROCEDE CON EL RESPUESTA Y PING ---
             rol_ping = message.guild.get_role(ID_ROL_PING)
             texto_ping = rol_ping.mention if rol_ping else "@Alianzas Babel"
 
             # 🖼️ CONSTRUCCIÓN DEL EMBED RESPUESTA
             embed = discord.Embed(
-                description=f"🐾 **¡NUEVO BABEL ABIERTO!** 🐾\n\nQue esperas mishito, disfruta estas 12h de babel.",
+                description="🐾 **¡NUEVO BABEL ABIERTO!** 🐾\n\nQue esperas mishito, disfruta estas 12h de babel.",
                 color=0xFF69B4 # Color rosa/purple estético
             )
             
-            # Ajustar la cabecera del Embed con la info del usuario
+            # Cabecera con info del usuario
             embed.set_author(
                 name=f"{message.author.name}", 
                 icon_url=message.author.display_avatar.url
             )
             
-            # Miniatura (thumbnail) e Imagen Grande
+            # Miniatura e Imagen Grande
             embed.set_thumbnail(url=message.author.display_avatar.url)
             embed.set_image(url=URL_BANNER_CRAZY)
             
@@ -964,7 +976,7 @@ async def on_message(message):
             # Responder directamente al mensaje de la plantilla
             await message.reply(content=texto_ping, embed=embed)
 
-    # NO BORRAR: Necesario para que el bot siga respondiendo a otros comandos
+    # NO BORRAR: Necesario para que el bot siga procesando comandos
     await bot.process_commands(message)
 # ==================================================
 # EJECUCIÓN INICIAL
