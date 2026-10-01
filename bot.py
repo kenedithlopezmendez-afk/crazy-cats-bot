@@ -985,7 +985,7 @@ async def on_message(message):
 # 📌 CONFIGURACIÓN DEL EVENTO LUNA DE SANGRE
 ID_CANAL_EVENTOS = 1445524571750138007   # ID del canal donde el otro bot envía el aviso
 ID_BOT_NEKOTINA = 1445525618136715447    # ID del bot que envía el aviso
-ID_ROL_AVENTURA = 1436361900215500870    # ID del rol al que se le hará ping (@Aventureros)
+ID_ROL_AVENTURA = 957855794869710859    # ID del rol al que se le hará ping (@Aventureros)
 
 # 🖼️ URL del banner/imagen principal (Cambia esta URL por la que tú quieras)
 URL_BANNER_LUNA_SANGRE = "https://cdn.discordapp.com/attachments/1450135217493901322/1555361773308346408/Gemini_Generated_Image_4i8sor4i8sor4i8s.jpg?backend=b2&ex=6ac03f07&is=6abeed87&hm=1ca0a60411c1a1a81b20da8358ca72b2db23f211bf7733c8f90c1985aee28973&"
