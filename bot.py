@@ -81,9 +81,9 @@ async def verificar_y_enviar_alerta(message):
             "color": 0x00AAFF
         },
         "carnaval": {
-            "titulo": "🌲 ¡SALA DE LUNA SANGRIENTA MUAJAJA!",
-            "descripcion": "🌲 ¡La luna de sangre ha llegado, envia a tus pets y suerte!",
-            "color": 0x55FF55
+            "titulo": "🎃 ¡SALA DE LUNA SANGRIENTA MUAJAJA!",
+            "descripcion": "🎃 ¡La luna de sangre ha llegado, envia a tus pets y suerte!",
+            "color": 0x8B0000
         }
     }
 
