@@ -80,9 +80,9 @@ async def verificar_y_enviar_alerta(message):
             "descripcion": "✨ ¡Una zona misteriosa ha aparecido! Corran a unirse.",
             "color": 0x00AAFF
         },
-        "whispering": {
-            "titulo": "🌲 ¡SALA DE WHISPERING DETECTADA!",
-            "descripcion": "🌲 ¡El bosque susurra... una nueva aventura está disponible!",
+        "carnaval": {
+            "titulo": "🌲 ¡SALA DE LUNA SANGRIENTA MUAJAJA!",
+            "descripcion": "🌲 ¡La luna de sangre ha llegado, envia a tus pets y suerte!",
             "color": 0x55FF55
         }
     }
