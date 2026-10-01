@@ -981,6 +981,66 @@ async def on_message(message):
 # ==================================================
 # EJECUCIÓN INICIAL
 # ==================================================
+
+# 📌 CONFIGURACIÓN DEL EVENTO LUNA DE SANGRE
+ID_CANAL_EVENTOS = 1445524571750138007   # ID del canal donde el otro bot envía el aviso
+ID_BOT_NEKOTINA = 1445525618136715447    # ID del bot que envía el aviso
+ID_ROL_AVENTURA = 1436361900215500870    # ID del rol al que se le hará ping (@Aventureros)
+
+# 🖼️ URL del banner/imagen principal (Cambia esta URL por la que tú quieras)
+URL_BANNER_LUNA_SANGRE = "https://cdn.discordapp.com/attachments/1450135217493901322/1555361773308346408/Gemini_Generated_Image_4i8sor4i8sor4i8s.jpg?backend=b2&ex=6ac03f07&is=6abeed87&hm=1ca0a60411c1a1a81b20da8358ca72b2db23f211bf7733c8f90c1985aee28973&"
+
+@bot.event
+async def on_message(message):
+    # 1. Verificar si el mensaje proviene del canal correcto
+    if message.channel.id == ID_CANAL_EVENTOS:
+        
+        # 2. Filtrar para que ÚNICAMENTE lea al bot del evento
+        if message.author.id == ID_BOT_NEKOTINA:
+            
+            # Extraer todo el texto (texto normal + títulos y descripciones de Embeds)
+            texto_completo = message.content.lower()
+            
+            if message.embeds:
+                for embed in message.embeds:
+                    if embed.title:
+                        texto_completo += f" {embed.title.lower()}"
+                    if embed.description:
+                        texto_completo += f" {embed.description.lower()}"
+                    for field in embed.fields:
+                        texto_completo += f" {field.name.lower()} {field.value.lower()}"
+
+            # 3. Validar si contiene las palabras clave "luna" y "sangre"
+            if "luna" in texto_completo and "sangre" in texto_completo:
+                
+                # Obtener el rol para hacer el ping
+                rol_ping = message.guild.get_role(ID_ROL_AVENTURA)
+                mencion_rol = rol_ping.mention if rol_ping else "@Aventureros"
+
+                # 🖼️ Construir el Embed de aviso con Imagen
+                embed_aviso = discord.Embed(
+                    title="🌕🔴 • ¡LA LUNA DE SANGRE HA LLEGADO! • 🔴🌕",
+                    description=(
+                        f"¡Atención {mencion_rol}!\n\n"
+                        "🕯️ **La Luna de Sangre se ha acercado, es hora de ir a la aventura.**\n"
+                        "Aprovecha las recompensas y bonificaciones activas antes de que desaparezca."
+                    ),
+                    color=0x990000 # Color rojo carmesí / sangre
+                )
+                
+                # Imagen de miniatura pequeña en la esquina derecha (Opcional)
+                embed_aviso.set_thumbnail(url=message.guild.icon.url if message.guild.icon else None)
+                
+                # 🖼️ BANNER/IMAGEN PRINCIPAL EN GRANDE
+                embed_aviso.set_image(url=URL_BANNER_LUNA_SANGRE)
+                
+                embed_aviso.set_footer(text=f"{message.guild.name} • Sistema de Alertas Automáticas")
+
+                # Enviar el ping con el Embed
+                await message.channel.send(content=f"🚨 {mencion_rol}", embed=embed_aviso)
+
+    # NO BORRAR: Necesario para procesar comandos y otras funciones
+    await bot.process_commands(message)
 if __name__ == "__main__":
     keep_alive() 
     print("🔥 Conectando con los servicios de Discord...")
