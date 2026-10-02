@@ -984,7 +984,7 @@ async def on_message(message):
 
 # 📌 CONFIGURACIÓN DEL EVENTO LUNA DE SANGRE
 ID_CANAL_EVENTOS = 1445524571750138007   # ID del canal donde el otro bot envía el aviso
-ID_BOT_NEKOTINA = 1445525618136715447    # ID del bot que envía el aviso
+ID_BOT_NEKOTINA = 429457053791158281    # ID del bot que envía el aviso
 ID_ROL_AVENTURA = 957855794869710859    # ID del rol al que se le hará ping (@Aventureros)
 
 # 🖼️ URL del banner/imagen principal (Cambia esta URL por la que tú quieras)
@@ -1011,7 +1011,7 @@ async def on_message(message):
                         texto_completo += f" {field.name.lower()} {field.value.lower()}"
 
             # 3. Validar si contiene las palabras clave "luna" y "sangre"
-            if "Luna de Sangre" in texto_completo and "Sangre" in texto_completo:
+            if "Luna" in texto_completo and "Sangre" in texto_completo:
                 
                 # Obtener el rol para hacer el ping
                 rol_ping = message.guild.get_role(ID_ROL_AVENTURA)
