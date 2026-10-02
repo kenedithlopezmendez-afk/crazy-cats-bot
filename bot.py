@@ -1011,7 +1011,7 @@ async def on_message(message):
                         texto_completo += f" {field.name.lower()} {field.value.lower()}"
 
             # 3. Validar si contiene las palabras clave "luna" y "sangre"
-            if "luna" in texto_completo and "sangre" in texto_completo:
+            if "Luna de Sangre" in texto_completo and "Sangre" in texto_completo:
                 
                 # Obtener el rol para hacer el ping
                 rol_ping = message.guild.get_role(ID_ROL_AVENTURA)
