@@ -983,26 +983,28 @@ async def on_message(message):
 # ==================================================
 
 # 📌 CONFIGURACIÓN DEL EVENTO LUNA DE SANGRE
-ID_CANAL_EVENTOS = 1445524571750138007   # ID del canal donde el otro bot envía el aviso
-ID_BOT_NEKOTINA = 1445525618136715447    # ID del bot que envía el aviso
+ID_CANAL_EVENTOS = 1445524571750138007   # ID del canal donde Nekotina envía este aviso
+ID_BOT_NEKOTINA = 1445525618136715447    # ID del bot Nekotina
 ID_ROL_AVENTURA = 957855794869710859    # ID del rol al que se le hará ping (@Aventureros)
 
-# 🖼️ URL del banner/imagen principal (Cambia esta URL por la que tú quieras)
-URL_BANNER_LUNA_SANGRE = "https://cdn.discordapp.com/attachments/1450135217493901322/1555361773308346408/Gemini_Generated_Image_4i8sor4i8sor4i8s.jpg?backend=b2&ex=6ac03f07&is=6abeed87&hm=1ca0a60411c1a1a81b20da8358ca72b2db23f211bf7733c8f90c1985aee28973&"
+URL_BANNER_LUNA_SANGRE = "https://cdn.discordapp.com/attachments/1450135217493901322/1556544549973663814/Gemini_Generated_Image_4i8sor4i8sor4i8s.jpg?backend=b2&ex=6ac48c93&is=6ac33b13&hm=80088b274b1685bc5435636f2d282b7818b8f9262d9193a9bdb0d7a6ea12dc62&"
 
 @bot.event
 async def on_message(message):
-    # 1. Verificar si el mensaje proviene del canal correcto
+    # 1. Verificar canal
     if message.channel.id == ID_CANAL_EVENTOS:
         
-        # 2. Filtrar para que ÚNICAMENTE lea al bot del evento
+        # 2. Filtrar mensaje exclusivo de Nekotina
         if message.author.id == ID_BOT_NEKOTINA:
             
-            # Extraer todo el texto (texto normal + títulos y descripciones de Embeds)
             texto_completo = message.content.lower()
             
+            # Extraer exhaustivamente todo el texto dentro del Embed de Nekotina
             if message.embeds:
                 for embed in message.embeds:
+                    # Inspeccionar Author (donde sale 'Suerte de Aventura bajo la Luna de Sangre')
+                    if embed.author and embed.author.name:
+                        texto_completo += f" {embed.author.name.lower()}"
                     if embed.title:
                         texto_completo += f" {embed.title.lower()}"
                     if embed.description:
@@ -1010,36 +1012,34 @@ async def on_message(message):
                     for field in embed.fields:
                         texto_completo += f" {field.name.lower()} {field.value.lower()}"
 
-            # 3. Validar si contiene las palabras clave "luna" y "sangre"
-            if "Luna" in texto_completo and "Sangre" in texto_completo:
-                
-                # Obtener el rol para hacer el ping
-                rol_ping = message.guild.get_role(ID_ROL_AVENTURA)
-                mencion_rol = rol_ping.mention if rol_ping else "@Aventureros"
+            # 3. FILTRO EXACTO: Revisa que mencione 'luna', 'sangre' Y 'aventura'
+            es_luna_sangre = "luna" in texto_completo and "sangre" in texto_completo
+            es_aventura = "aventura" in texto_completo
 
-                # 🖼️ Construir el Embed de aviso con Imagen
+            if es_luna_sangre and es_aventura:
+                
+                # Obtener mención del rol de forma segura
+                rol_ping = message.guild.get_role(ID_ROL_AVENTURA)
+                mencion_rol = rol_ping.mention if rol_ping else f"<@&{ID_ROL_AVENTURA}>"
+
+                # 🎃 Embed Temático Halloween / Luna de Sangre
                 embed_aviso = discord.Embed(
-                    title="🌕🔴 • ¡LA LUNA DE SANGRE HA LLEGADO! • 🔴🌕",
+                    title="🎃🔴 • ¡LA LUNA DE SANGRE HA LLEGADO! • 🔴🎃",
                     description=(
                         f"¡Atención {mencion_rol}!\n\n"
                         "🕯️ **La Luna de Sangre se ha acercado, es hora de ir a la aventura.**\n"
-                        "Aprovecha las recompensas y bonificaciones activas antes de que desaparezca."
+                        "Aprovecha las recompensas y la alta probabilidad de items raros antes de que cambie la fortuna."
                     ),
-                    color=0x990000 # Color rojo carmesí / sangre
+                    color=0xFF7518 # Naranja Calabaza / Halloween
                 )
                 
-                # Imagen de miniatura pequeña en la esquina derecha (Opcional)
-                embed_aviso.set_thumbnail(url=message.guild.icon.url if message.guild.icon else None)
-                
-                # 🖼️ BANNER/IMAGEN PRINCIPAL EN GRANDE
                 embed_aviso.set_image(url=URL_BANNER_LUNA_SANGRE)
-                
-                embed_aviso.set_footer(text=f"{message.guild.name} • Sistema de Alertas Automáticas")
+                embed_aviso.set_footer(text=f"{message.guild.name} • Alerta de Bendiciones")
 
-                # Enviar el ping con el Embed
+                # Enviar mensaje con Ping y Embed
                 await message.channel.send(content=f"🚨 {mencion_rol}", embed=embed_aviso)
 
-    # NO BORRAR: Necesario para procesar comandos y otras funciones
+    # Procesar otros comandos normalmente
     await bot.process_commands(message)
 if __name__ == "__main__":
     keep_alive() 
