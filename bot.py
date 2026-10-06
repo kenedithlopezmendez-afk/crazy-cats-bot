@@ -7,6 +7,8 @@ import logging
 import asyncio  # 🌟 ¡Agregado para manejar los tiempos del juego!
 import random   # 🌟 ¡Agregado para la aleatoriedad de las plataformas!
 import datetime
+import time
+
 
 # Configuración de logs básica para ver movimientos en Render
 logging.basicConfig(level=logging.INFO)
@@ -52,10 +54,15 @@ ROL_STAFF_JUEGO = 937028989854298172
 ID_ROL_STAFF = 937028989854298172        # ID de tu rol de Staff
 ID_ROL_PARTICIPANTE = 1481390471153717319 # ID del rol Mishi participante
 
+# Variable global para prevenir duplicados por edición o doble evento
+ultimo_aviso_tiempo = 0
+
 # ==================================================
-# NÚCLEO DEL DETECTOR
+# NÚCLEO DEL DETECTOR (CORREGIDO Y MEJORADO)
 # ==================================================
 async def verificar_y_enviar_alerta(message):
+    global ultimo_aviso_tiempo
+
     # 1. RESTRICCIÓN: Detectar SOLO en el canal especificado
     if message.channel.id != CANAL_DETECCION:
         return
@@ -68,19 +75,29 @@ async def verificar_y_enviar_alerta(message):
     if not message.embeds:
         return
 
+    # 🛑 CONTROL ANTI-DOBLE PING (Si pasaron menos de 20 segundos desde la última alerta, se ignora)
+    tiempo_actual = time.time()
+    if tiempo_actual - ultimo_aviso_tiempo < 20:
+        return
+
     # Mapeo de zonas según las palabras clave secundarias
     salas = {
-        "aventura: magma": {
+        "magma": {
             "titulo": "🌋 ¡SALA DEL INFIERNO DETECTADA!",
             "descripcion": "🔥 El calor aumenta, ¡prepara tus mascotas y únete para ir al infierno!",
             "color": 0xFF5500
         },
-        "tierras remotas": {
+        "remotas": {
             "titulo": "🏝 ¡SALA DE TIERRAS REMOTAS DETECTADA!",
             "descripcion": "✨ ¡Una zona misteriosa ha aparecido! Corran a unirse.",
             "color": 0x00AAFF
         },
         "carnaval": {
+            "titulo": "🎃 ¡SALA DE LUNA SANGRIENTA MUAJAJA!",
+            "descripcion": "🎃 ¡La luna de sangre ha llegado, envia a tus pets y suerte!",
+            "color": 0x8B0000
+        },
+        "luna": {
             "titulo": "🎃 ¡SALA DE LUNA SANGRIENTA MUAJAJA!",
             "descripcion": "🎃 ¡La luna de sangre ha llegado, envia a tus pets y suerte!",
             "color": 0x8B0000
@@ -91,13 +108,17 @@ async def verificar_y_enviar_alerta(message):
     for embed in message.embeds:
         texto = ""
 
+        # 🔍 Capturar también el Author (importante para avisos de Nekotina)
+        if embed.author and embed.author.name:
+            texto += f" {embed.author.name.lower()}"
+
         if embed.title:
-            texto += embed.title.lower()
+            texto += f" {embed.title.lower()}"
 
         if embed.description:
-            texto += embed.description.lower()
+            texto += f" {embed.description.lower()}"
 
-        # Escanear también los campos internos por si el nombre de la zona cae ahí
+        # Escanear también los campos internos
         for field in embed.fields:
             texto += f" {field.name.lower()} {field.value.lower()}"
 
@@ -121,6 +142,9 @@ async def verificar_y_enviar_alerta(message):
 
             canal_alertas = bot.get_channel(CANAL_AVENTURAS)
             if canal_alertas:
+                # 🛑 Registrar tiempo actual para bloquear el segundo disparo por edición
+                ultimo_aviso_tiempo = tiempo_actual
+
                 nuevo_embed = discord.Embed(
                     title=zona_encontrada["titulo"],
                     description=zona_encontrada["descripcion"],
@@ -154,21 +178,20 @@ async def on_ready():
 
 @bot.event
 async def on_message(message):
-    # Ignorar pings provocados por el propio bot
     if message.author == bot.user:
         return
 
     await verificar_y_enviar_alerta(message)
-    await bot.process_commands(message) # 🌟 ¡Súper clave para procesar tus comandos!
+    await bot.process_commands(message)
 
 @bot.event
 async def on_message_edit(before, after):
     if after.author == bot.user:
         return
 
-    # Capta el embed cuando la App lo actualiza con los botones de unirse
+    # Ahora con la variable ultimo_aviso_tiempo, si la edición ocurre segundos después,
+    # el bot la ignorará limpiamente sin duplicar el ping.
     await verificar_y_enviar_alerta(after)
-
 
 # ==================================================
 # 🌟 MINIJUEGO: PLATAFORMAS DINÁMICAS (1 MIN REGISTRO + 15 SEG ELECCIÓN) 🌟
@@ -983,63 +1006,65 @@ async def on_message(message):
 # ==================================================
 
 # 📌 CONFIGURACIÓN DEL EVENTO LUNA DE SANGRE
-ID_CANAL_EVENTOS = 1445524571750138007   # ID del canal donde Nekotina envía este aviso
-ID_BOT_NEKOTINA = 1445525618136715447    # ID del bot Nekotina
-ID_ROL_AVENTURA = 957855794869710859    # ID del rol al que se le hará ping (@Aventureros)
+ID_CANAL_EVENTOS = 1445524571750138007   # Reemplaza con el ID de tu canal
+ID_ROL_AVENTURA = 957855794869710859    # Reemplaza con el ID del rol a etiquetar
 
-URL_BANNER_LUNA_SANGRE = "https://cdn.discordapp.com/attachments/1450135217493901322/1556544549973663814/Gemini_Generated_Image_4i8sor4i8sor4i8s.jpg?backend=b2&ex=6ac48c93&is=6ac33b13&hm=80088b274b1685bc5435636f2d282b7818b8f9262d9193a9bdb0d7a6ea12dc62&"
+URL_BANNER_LUNA_SANGRE = "https://cdn.discordapp.com/attachments/1477118463943245875/1557111051886002277/Gemini_Generated_Image_4i8sor4i8sor4i8s.jpg?backend=b2&ex=6ac69c2c&is=6ac54aac&hm=c0b3f4a6541a8ad6580cc0c77880c663863d518706bd70cf0e573ef0033c064c&"
 
 @bot.event
 async def on_message(message):
-    # 1. Verificar canal
+    # 1. Ignorar únicamente los mensajes que envíe NUESTRO PROPIO bot (para evitar bucles)
+    if message.author == bot.user:
+        return
+
+    # 2. Verificar que el mensaje provenga DEL CANAL ESPECÍFICO
     if message.channel.id == ID_CANAL_EVENTOS:
         
-        # 2. Filtrar mensaje exclusivo de Nekotina
-        if message.author.id == ID_BOT_NEKOTINA:
+        # Unificamos todo el texto detectado
+        texto_completo = message.content.lower()
+
+        # Si el mensaje incluye Embeds, extraemos todo el texto disponible
+        if message.embeds:
+            for embed in message.embeds:
+                if embed.author and embed.author.name:
+                    texto_completo += f" {embed.author.name.lower()}"
+                if embed.title:
+                    texto_completo += f" {embed.title.lower()}"
+                if embed.description:
+                    texto_completo += f" {embed.description.lower()}"
+                for field in embed.fields:
+                    texto_completo += f" {field.name.lower()} {field.value.lower()}"
+
+        # 3. VALIDACIÓN DE PALABRAS CLAVE: 'aventura', 'luna' y 'sangre'
+        tiene_aventura = "aventura" in texto_completo
+        tiene_luna = "luna" in texto_completo
+        tiene_sangre = "sangre" in texto_completo
+
+        # Si el mensaje contiene las 3 palabras clave
+        if tiene_aventura and tiene_luna and tiene_sangre:
             
-            texto_completo = message.content.lower()
+            # Formatear la mención del rol
+            rol_ping = message.guild.get_role(ID_ROL_AVENTURA)
+            mencion_rol = rol_ping.mention if rol_ping else f"<@&{ID_ROL_AVENTURA}>"
+
+            # 🎃 Embed de respuesta estilo Halloween
+            embed_aviso = discord.Embed(
+                title="🎃🔴 • ¡LA LUNA DE SANGRE HA LLEGADO! • 🔴🎃",
+                description=(
+                    f"¡Atención {mencion_rol}!\n\n"
+                    "🕯️ **La Luna de Sangre se ha acercado, es hora de ir a la aventura.**\n"
+                    "Aprovecha las recompensas y la alta probabilidad de items raros antes de que cambie la fortuna."
+                ),
+                color=0xFF7518 # Naranja Calabaza
+            )
             
-            # Extraer exhaustivamente todo el texto dentro del Embed de Nekotina
-            if message.embeds:
-                for embed in message.embeds:
-                    # Inspeccionar Author (donde sale 'Suerte de Aventura bajo la Luna de Sangre')
-                    if embed.author and embed.author.name:
-                        texto_completo += f" {embed.author.name.lower()}"
-                    if embed.title:
-                        texto_completo += f" {embed.title.lower()}"
-                    if embed.description:
-                        texto_completo += f" {embed.description.lower()}"
-                    for field in embed.fields:
-                        texto_completo += f" {field.name.lower()} {field.value.lower()}"
+            embed_aviso.set_image(url=URL_BANNER_LUNA_SANGRE)
+            embed_aviso.set_footer(text=f"{message.guild.name} • Alerta de Bendiciones")
 
-            # 3. FILTRO EXACTO: Revisa que mencione 'luna', 'sangre' Y 'aventura'
-            es_luna_sangre = "luna" in texto_completo and "sangre" in texto_completo
-            es_aventura = "aventura" in texto_completo
+            # Enviar el aviso al canal
+            await message.channel.send(content=f"🚨 {mencion_rol}", embed=embed_aviso)
 
-            if es_luna_sangre and es_aventura:
-                
-                # Obtener mención del rol de forma segura
-                rol_ping = message.guild.get_role(ID_ROL_AVENTURA)
-                mencion_rol = rol_ping.mention if rol_ping else f"<@&{ID_ROL_AVENTURA}>"
-
-                # 🎃 Embed Temático Halloween / Luna de Sangre
-                embed_aviso = discord.Embed(
-                    title="🎃🔴 • ¡LA LUNA DE SANGRE HA LLEGADO! • 🔴🎃",
-                    description=(
-                        f"¡Atención {mencion_rol}!\n\n"
-                        "🕯️ **La Luna de Sangre se ha acercado, es hora de ir a la aventura.**\n"
-                        "Aprovecha las recompensas y la alta probabilidad de items raros antes de que cambie la fortuna."
-                    ),
-                    color=0xFF7518 # Naranja Calabaza / Halloween
-                )
-                
-                embed_aviso.set_image(url=URL_BANNER_LUNA_SANGRE)
-                embed_aviso.set_footer(text=f"{message.guild.name} • Alerta de Bendiciones")
-
-                # Enviar mensaje con Ping y Embed
-                await message.channel.send(content=f"🚨 {mencion_rol}", embed=embed_aviso)
-
-    # Procesar otros comandos normalmente
+    # NO BORRAR: Para que los demás comandos del bot sigan funcionando
     await bot.process_commands(message)
 if __name__ == "__main__":
     keep_alive() 
