@@ -1001,71 +1001,114 @@ async def on_message(message):
 
     # NO BORRAR: Necesario para que el bot siga procesando comandos
     await bot.process_commands(message)
-# ==================================================
-# EJECUCIÓN INICIAL
-# ==================================================
-
-# 📌 CONFIGURACIÓN DEL EVENTO LUNA DE SANGRE
-ID_CANAL_EVENTOS = 1445524571750138007   # Reemplaza con el ID de tu canal
-ID_ROL_AVENTURA = 957855794869710859    # Reemplaza con el ID del rol a etiquetar
+# 📌 VARIABLES Y CONFIGURACIÓN
+ID_CANAL_EVENTOS = 1445524571750138007   # Canal de avisos/bendiciones
+ID_ROL_AVENTURA = 957855794869710859    # Rol a etiquetar (@Aventureros)
 
 URL_BANNER_LUNA_SANGRE = "https://cdn.discordapp.com/attachments/1477118463943245875/1557111051886002277/Gemini_Generated_Image_4i8sor4i8sor4i8s.jpg?backend=b2&ex=6ac69c2c&is=6ac54aac&hm=c0b3f4a6541a8ad6580cc0c77880c663863d518706bd70cf0e573ef0033c064c&"
 
-@bot.event
-async def on_message(message):
-    # 1. Ignorar únicamente los mensajes que envíe NUESTRO PROPIO bot (para evitar bucles)
+# Variable global para evitar alertas duplicadas por ediciones rápidas
+ultimo_aviso_luna = 0
+
+
+async def procesar_alerta_luna_sangre(message):
+    global ultimo_aviso_luna
+
+    # 1. Ignorar si el mensaje proviene de nuestro propio bot
     if message.author == bot.user:
         return
 
-    # 2. Verificar que el mensaje provenga DEL CANAL ESPECÍFICO
-    if message.channel.id == ID_CANAL_EVENTOS:
+    # 2. Validar que sea en el canal de eventos
+    if message.channel.id != ID_CANAL_EVENTOS:
+        return
+
+    # 3. Muro de tiempo (Cooldown de 25 segundos anti-doble ping por edición)
+    tiempo_actual = time.time()
+    if tiempo_actual - ultimo_aviso_luna < 25:
+        return
+
+    # Unificamos todo el texto del mensaje y de los Embeds
+    texto_completo = message.content.lower()
+
+    if message.embeds:
+        for embed in message.embeds:
+            if embed.author and embed.author.name:
+                texto_completo += f" {embed.author.name.lower()}"
+            if embed.title:
+                texto_completo += f" {embed.title.lower()}"
+            if embed.description:
+                texto_completo += f" {embed.description.lower()}"
+            for field in embed.fields:
+                texto_completo += f" {field.name.lower()} {field.value.lower()}"
+
+    # 4. Validar las 3 palabras clave imprescindibles
+    tiene_aventura = "aventura" in texto_completo
+    tiene_luna = "luna" in texto_completo
+    tiene_sangre = "sangre" in texto_completo or "sangrienta" in texto_completo
+
+    if tiene_aventura and tiene_luna and tiene_sangre:
         
-        # Unificamos todo el texto detectado
-        texto_completo = message.content.lower()
+        rol_ping = message.guild.get_role(ID_ROL_AVENTURA)
+        mencion_rol = rol_ping.mention if rol_ping else f"<@&{ID_ROL_AVENTURA}>"
 
-        # Si el mensaje incluye Embeds, extraemos todo el texto disponible
-        if message.embeds:
-            for embed in message.embeds:
-                if embed.author and embed.author.name:
-                    texto_completo += f" {embed.author.name.lower()}"
-                if embed.title:
-                    texto_completo += f" {embed.title.lower()}"
-                if embed.description:
-                    texto_completo += f" {embed.description.lower()}"
-                for field in embed.fields:
-                    texto_completo += f" {field.name.lower()} {field.value.lower()}"
-
-        # 3. VALIDACIÓN DE PALABRAS CLAVE: 'aventura', 'luna' y 'sangre'
-        tiene_aventura = "aventura" in texto_completo
-        tiene_luna = "luna" in texto_completo
-        tiene_sangre = "sangre" in texto_completo
-
-        # Si el mensaje contiene las 3 palabras clave
-        if tiene_aventura and tiene_luna and tiene_sangre:
+        # ----------------------------------------------------
+        # CASO 1: AVISO PREVIO ("Se acerca...")
+        # ----------------------------------------------------
+        if "se acerca" in texto_completo:
+            ultimo_aviso_luna = tiempo_actual  # Bloquear duplicados
             
-            # Formatear la mención del rol
-            rol_ping = message.guild.get_role(ID_ROL_AVENTURA)
-            mencion_rol = rol_ping.mention if rol_ping else f"<@&{ID_ROL_AVENTURA}>"
-
-            # 🎃 Embed de respuesta estilo Halloween
             embed_aviso = discord.Embed(
+                title="⏳ • ¡SE ACERCA LA LUNA DE SANGRE! • ⏳",
+                description=(
+                    f"¡Atención {mencion_rol}!\n\n"
+                    "🌕🔴 **Se acerca Suerte de Aventura bajo la Luna de Sangre.**\n"
+                    "¡Ve preparándote y alista a tus mascotas antes de que empiece el evento!"
+                ),
+                color=0xFF7518  # Naranja Calabaza
+            )
+            embed_aviso.set_image(url=URL_BANNER_LUNA_SANGRE)
+            embed_aviso.set_footer(text=f"{message.guild.name} • Alerta Preventiva")
+
+            await message.channel.send(content=f"🔔 {mencion_rol}", embed=embed_aviso)
+            print("✅ Éxito: Alerta enviada (PREVIA de Luna de Sangre)")
+            return
+
+        # ----------------------------------------------------
+        # CASO 2: EVENTO ACTIVO ("¡La fortuna cambió! Ahora brilla...")
+        # ----------------------------------------------------
+        elif "brilla" in texto_completo or "cambió" in texto_completo or "llegado" in texto_completo:
+            ultimo_aviso_luna = tiempo_actual  # Bloquear duplicados
+            
+            embed_activo = discord.Embed(
                 title="🎃🔴 • ¡LA LUNA DE SANGRE HA LLEGADO! • 🔴🎃",
                 description=(
                     f"¡Atención {mencion_rol}!\n\n"
                     "🕯️ **La Luna de Sangre se ha acercado, es hora de ir a la aventura.**\n"
                     "Aprovecha las recompensas y la alta probabilidad de items raros antes de que cambie la fortuna."
                 ),
-                color=0xFF7518 # Naranja Calabaza
+                color=0x8B0000  # Rojo Carmesí
             )
-            
-            embed_aviso.set_image(url=URL_BANNER_LUNA_SANGRE)
-            embed_aviso.set_footer(text=f"{message.guild.name} • Alerta de Bendiciones")
+            embed_activo.set_image(url=URL_BANNER_LUNA_SANGRE)
+            embed_activo.set_footer(text=f"{message.guild.name} • Evento Activo")
 
-            # Enviar el aviso al canal
-            await message.channel.send(content=f"🚨 {mencion_rol}", embed=embed_aviso)
+            await message.channel.send(content=f"🚨 {mencion_rol}", embed=embed_activo)
+            print("✅ Éxito: Alerta enviada (EVENTO ACTIVO de Luna de Sangre)")
+            return
 
-    # NO BORRAR: Para que los demás comandos del bot sigan funcionando
+
+# ==================================================
+# EVENTOS DE ESCUCHA
+# ==================================================
+
+@bot.event
+async def on_message(message):
+    await procesar_alerta_luna_sangre(message)
     await bot.process_commands(message)
+
+@bot.event
+async def on_message_edit(before, after):
+    await procesar_alerta_luna_sangre(after)
+    
 if __name__ == "__main__":
     keep_alive() 
     print("🔥 Conectando con los servicios de Discord...")
