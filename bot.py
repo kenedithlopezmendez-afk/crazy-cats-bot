@@ -38,7 +38,7 @@ intents = discord.Intents.default()
 intents.message_content = True 
 intents.messages = True
 
-bot = commands.Bot(command_prefix="D", intents=intents)
+bot = commands.Bot(command_prefix="?", intents=intents)
 
 # -------- CONFIGURACIÓN DE IDs DE TU SERVIDOR --------
 CANAL_AVENTURAS = 1436358970284572723  # Canal donde el bot enviará el ping
@@ -594,7 +594,7 @@ async def comandos(ctx):
         title="🐾 • GUÍA DE COMANDOS DE CRAZY CATS",
         description=(
             "¡Hola! Aquí tienes la lista oficial de comandos disponibles. "
-            "Recuerda que mi prefijo actual es **`D`**.\n\n"
+            "Recuerda que mi prefijo actual es **`?`**.\n\n"
             "---"
         ),
         color=0xFFB6C1  # Color rosa estético 🌸
@@ -604,8 +604,8 @@ async def comandos(ctx):
     embed.add_field(
         name="🔒 1. CONTROL DE DINÁMICAS Y APERTURA BABEL (Solo Staff)",
         value=(
-            "`Dabrir @usuario` -> Da el rol de participante para permitirle hablar.\n"
-            "`Dcerrar @usuario` -> Quita el rol de participante al terminar."
+            "`?abrir @usuario` -> Da el rol de participante para permitirle hablar.\n"
+            "`?cerrar @usuario` -> Quita el rol de participante al terminar."
         ),
         inline=False
     )
@@ -614,12 +614,12 @@ async def comandos(ctx):
     embed.add_field(
         name="🛡️ 2. MODERACIÓN Y SEGURIDAD (Solo Staff)",
         value=(
-            "`Dclear [cantidad]` -> Borra mensajes en masa de forma limpia.\n"
-            "`Dkick @usuario [razón]` -> Expulsa a un miembro del servidor.\n"
-            "`Dban @usuario [razón]` -> Banea permanentemente a un usuario.\n" \
-            "`Dmute @usuario [tiempo] [razón]`-> Silencia por algun tiempo a un usuario.\n" \
-            "`Dunmute @usuario [razón]` -> Quita el silencio del mienbro sancionado.\n" \
-            "`Dabout -> Muestra quien es owner del servidor y el creador del bot CrazyCats!.\n"
+            "`?clear [cantidad]` -> Borra mensajes en masa de forma limpia.\n"
+            "`?kick @usuario [razón]` -> Expulsa a un miembro del servidor.\n"
+            "`?ban @usuario [razón]` -> Banea permanentemente a un usuario.\n" \
+            "`?mute @usuario [tiempo] [razón]`-> Silencia por algun tiempo a un usuario.\n" \
+            "`?unmute @usuario [razón]` -> Quita el silencio del mienbro sancionado.\n" \
+            "`?about` -> Muestra quien es owner del servidor y el creador del bot CrazyCats!.\n"
         ),
         inline=False
     )
@@ -641,204 +641,6 @@ async def comandos(ctx):
     
     await ctx.send(embed=embed)
 
-    # ==================================================
-# 🪙 CONFIGURACIÓN DE SUBASTAS: LAS 10 LISTAS
-# ==================================================
-ID_ROL_SUBASTAS = 1061055717429219469  # ID de tu rol de subastas (@Subastas)
-ID_CANAL_PAGO = 1422336904308719667    # ID de tu canal de pagos o reclamos
-
-# Modifica los datos de cada lista aquí adentro antes del evento:
-SUBASTAS_DATA = {
-    1: {"item": "🎒 Shiny Congelado x110", "dueno": "<@753471584500580365>", "precio_inicial": "emp", "imagen": "https://i.imgur.com/Ejemplo1.png"},
-    2: {"item": "👑 Manzana Corrompida x20", "dueno": "<@1454737746152128698>", "precio_inicial": "emp", "imagen": ""},
-    3: {"item": "🐱 Huevo de Laplace y Solace", "dueno": "<@806387649245872139>", "precio_inicial": "5 emp", "imagen": ""},
-    4: {"item": "📦 Canastita III y 50 loot box", "dueno": "<@1071566219783716904>", "precio_inicial": "5 emp", "imagen": ""},
-    5: {"item": "💎 Canastita IIi y 15 Picas Shiva", "dueno": "<@1071566219783716904>", "precio_inicial": "5 emp", "imagen": ""},
-    6: {"item": "🎫 Calavera Pirata x3", "dueno": "<@1012552938520060005>", "precio_inicial": "5 emp", "imagen": ""},
-    7: {"item": "⚔️ Huevo de Santa Slime y Canastita III", "dueno": "<@1058990006930259999>", "precio_inicial": "5 emp", "imagen": ""},
-    8: {"item": "🍏 Lingote de Magmaria", "dueno": "<@1431792426435088557>", "precio_inicial": "5 emp", "imagen": ""},
-    9: {"item": "⚡ Haste Scroll x115", "dueno": "<@837765625656508447>", "precio_inicial": "emp", "imagen": ""},
-    10: {"item": "🔥 Pez Shiny x105", "dueno": "<@1477848205570867244>", "precio_inicial": "emp", "imagen": ""}
-}
-
-# Variables de control de memoria interna
-subasta_activa = False
-item_en_subasta = ""
-dueno_del_item = ""
-ultima_puja = 0
-ultimo_pujador = None
-
-import asyncio
-
-# --- FUNCIÓN INTERNA: REGISTRAR E INICIAR UNA LISTA ESPECÍFICA ---
-async def iniciar_subasta_lista(ctx, numero_lista: int):
-    global subasta_activa, ultima_puja, ultimo_pujador, item_en_subasta, dueno_del_item
-    
-    datos = SUBASTAS_DATA[numero_lista]
-    
-    subasta_activa = True
-    item_en_subasta = datos["item"]
-    dueno_del_item = datos["dueno"]
-    ultima_puja = datos["precio_inicial"]
-    ultimo_pujador = None
-    
-    rol_subastas = ctx.guild.get_role(ID_ROL_SUBASTAS)
-    ping = rol_subastas.mention if rol_subastas else "@Subastas"
-    
-    embed = discord.Embed(
-        title=f"🔨 • ¡NUEVA SUBASTA INICIADA (Lista {numero_lista})!",
-        description=(
-            f"**Ítem:** {datos['item']}\n"
-            f"**Dueño:** {datos['dueno']}\n"
-            f"**Precio Inicial:** `{datos['precio_inicial']}`\n\n" # <-- ¡Corregido aquí! Ya sin el ":,"
-            f"▶️ Toda la comunidad puede usar **`Dpujar [cantidad]`** para mejorar la oferta."
-        ),
-        color=0x9B59B6
-    )
-    if datos["imagen"]:
-        embed.set_thumbnail(url=datos["imagen"])
-    embed.set_footer(text=f"Crazy Cats Auctions • Oferta de apertura: {ultima_puja}")
-    
-    await ctx.send(content=ping, embed=embed)
-
-# --- CREACIÓN AUTOMÁTICA DE COMANDOS: Dlista1 hasta Dlista10 (SOLO STAFF) ---
-def crear_comando_lista(num):
-    @bot.command(name=f"lista{num}")
-    @es_staff_por_id()
-    async def _lista(ctx):
-        await iniciar_subasta_lista(ctx, num)
-    return _lista
-
-# Registramos los 10 comandos en el bot de golpe
-for i in range(1, 11):
-    crear_comando_lista(i)
-
-
-# --- COMANDO: PUJAR (¡REGISTRA AUTOMÁTICAMENTE AL JUGADOR!) ---
-@bot.command(name="pujar")
-async def pujar(ctx, *, oferta_texto: str):
-    global subasta_activa, ultima_puja, ultimo_pujador
-    
-    if not subasta_activa:
-        await ctx.send(f"❌ {ctx.author.mention}, no hay ninguna subasta corriendo en este momento.", delete_after=5)
-        return
-
-    # Guardamos tanto el texto de la oferta como al usuario que la hizo
-    ultima_puja = oferta_texto
-    ultimo_pujador = ctx.author
-
-    embed_puja = discord.Embed(
-        title="💰 • ¡NUEVA PUJA MÁS ALTA!",
-        description=f"**{ctx.author.mention}** ofrece **`{oferta_texto}`** por el ítem.",
-        color=0x2ECC71
-    )
-    embed_puja.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar.url if ctx.author.avatar else None)
-    embed_puja.set_image(url="https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3V6Ym94ZnM3N3Y0b3E4ZXN4ZHY4Y3ZpZ3B3dzBwYm9pZnZidSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3orif2v1B99t8E1SgM/giphy.gif")
-    embed_puja.set_footer(text="¡La oferta sigue subiendo! ¿Alguien da más?")
-
-    await ctx.send(embed=embed_puja)
-
-# --- COMANDO: CONTADOR EDITABLE EN TIEMPO REAL (SOLO STAFF) ---
-@bot.command(name="contar")
-@es_staff_por_id()
-async def contar(ctx):
-    if not subasta_activa:
-        await ctx.send("❌ No hay una subasta activa para cronometrar.")
-        return
-
-    mensaje_cronometro = await ctx.send("⏱️ **Iniciando cuenta regresiva de la subasta...**")
-    
-    for tiempo in range(12, 0, -1):
-        if tiempo > 5:
-            await mensaje_cronometro.edit(content=f"⏳ **¡La subasta se va a cerrar! Quedan: {tiempo} segundos...**")
-        else:
-            await mensaje_cronometro.edit(content=f"🚨 **¡ÚLTIMOS SEGUNDOS! Quedan: {tiempo} segundos...**")
-        await asyncio.sleep(1)
-        
-    await mensaje_cronometro.edit(content="🔨 **¡TIEMPO AGOTADO! La subasta se ha cerrado oficialmente.**")
-
-
-# --- COMANDO: DECLARAR GANADOR AUTOMÁTICO (¡YA NO PIDES USER!) ---
-@bot.command(name="pago")
-@es_staff_por_id()
-async def pago(ctx):
-    global subasta_activa, ultima_puja, ultimo_pujador, item_en_subasta, dueno_del_item
-    
-    if not subasta_activa:
-        await ctx.send("❌ No hay una subasta activa para cerrar con pago.")
-        return
-        
-    # 🚨 Validación de seguridad por si nadie llegó a pujar durante la lista
-    if ultimo_pujador is None:
-        await ctx.send("⚠️ No se puede cerrar la subasta porque **nadie ha realizado ninguna puja** todavía.")
-        return
-        
-    canal_pago = ctx.guild.get_channel(ID_CANAL_PAGO)
-    mencion_canal = canal_pago.mention if canal_pago else "#canal-de-pagos"
-    
-    embed_ganador = discord.Embed(
-        title="🎉 🏆 ¡SUBASTA FINALIZADA COMTEMPORÁNEA! 🏆 🎉",
-        description=(
-            f"¡Felicidades {ultimo_pujador.mention} por haber ganado la subasta!\n\n"
-            f"📦 **Ítem ganado:** {item_en_subasta}\n"
-            f"💵 **Favor de pagar:** `{ultima_puja}`\n"
-            f"👤 **A favor de:** {dueno_del_item} (Dueño original)\n" # <-- Formato corregido para menciones limpias
-            f"📍 **Canal de transferencia:** {mencion_canal}"
-        ),
-        color=0xF1C40F
-    )
-    if ultimo_pujador.avatar:
-        embed_ganador.set_thumbnail(url=ultimo_pujador.avatar.url)
-    embed_ganador.set_footer(text=f"Crazy Cats Auctions • ¡Gracias por comerciar con nosotros!")
-    
-    subasta_activa = False  # Apagamos la subasta para dejar todo listo para la siguiente lista
-    await ctx.send(embed=embed_ganador)
-
-   # --- COMANDO: CARTELERA CON PING Y EMOJIS ANIMADOS (SOLO STAFF) ---
-@bot.command(name="subastas")
-@es_staff_por_id()
-async def subastas(ctx):
-    try:
-        await ctx.message.delete()
-    except discord.Forbidden:
-        pass
-
-    # 🔔 OBTENER EL ROL PARA EL PING
-    rol_subastas = ctx.guild.get_role(ID_ROL_SUBASTAS)
-    ping_texto = rol_subastas.mention if rol_subastas else "@Subastas"
-
-    # EMOJIS ANIMADOS (Reemplaza con tus IDs reales usando \:emoji:)
-    emoji_titulo = "<a:cc_moneyy:1039727783766671411>" 
-    emoji_flecha = "<a:emoji_358:1457417225920315544>"  
-
-    embed = discord.Embed(
-        title=f"{emoji_titulo} • ¡CARTELERA OFICIAL DE SUBASTAS! • {emoji_titulo}",
-        description=(
-            "¡Atención comunidad! Los motores ya están calientes. 🔥\n"
-            "Aquí tienen la lista completa de los ítems que se disputarán hoy junto a sus dueños.\n\n"
-            "⚠️ *Los precios iniciales son secretos hasta que el Staff abra cada lista con `Dlista`.* \n"
-            "---"
-        ),
-        color=0xE67E22
-    )
-
-    for num, datos in SUBASTAS_DATA.items():
-        item_nombre = datos["item"] if datos["item"] else "Por anunciar..."
-        dueno_nombre = datos["dueno"] if datos["dueno"] else "Anónimo"
-        
-        embed.add_field(
-            name=f"🛑 Lista #{num}",
-            value=f"{emoji_flecha} **Ítem:** {item_nombre}\n👤 **Dueño:** {dueno_nombre}",
-            inline=False
-        )
-
-    embed.set_footer(text=f"🐾 {ctx.guild.name} • ¡Preparen sus billeteras!")
-    embed.set_image(url="https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3V6Ym94ZnM3N3Y0b3E4ZXN4ZHY4Y3ZpZ3B3dzBwYm9pZnZidSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/l0HlVJpG6N9YshF8k/giphy.gif")
-
-    # Envía el contenido del ping primero y el embed pegado abajo
-    await ctx.send(content=ping_texto, embed=embed)
-
-    import datetime
 
 # 🤫 CONFIGURACIÓN DEL FILTRO DE MODERACIÓN
 ID_CANAL_LOGS = 926513579652431934  # ⬅️ REEMPLAZA CON EL ID DE TU CANAL PRIVADO DE LOGS/STAFF
@@ -1108,7 +910,7 @@ async def on_message(message):
 @bot.event
 async def on_message_edit(before, after):
     await procesar_alerta_luna_sangre(after)
-    
+
 if __name__ == "__main__":
     keep_alive() 
     print("🔥 Conectando con los servicios de Discord...")
