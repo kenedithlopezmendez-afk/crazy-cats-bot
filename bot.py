@@ -804,6 +804,100 @@ async def on_message(message):
     # NO BORRAR: Necesario para que el bot siga procesando comandos
     await bot.process_commands(message)
 
+# 📌 CONFIGURACIÓN DE IDs Y BANNER
+ID_CANAL_AVISOS = 1445524571750138007    # Canal donde el bot publicará los Embeds
+ID_ROL_AVENTURA = 957855794869710859    # Rol a etiquetar (@Aventureros)
+ID_ROL_STAFF = 937028989854298172       # ⚠️ Reemplaza con el ID del rol de Staff
+
+URL_BANNER_LUNA_SANGRE = "https://cdn.discordapp.com/attachments/1477118463943245875/1557111051886002277/Gemini_Generated_Image_4i8sor4i8sor4i8s.jpg?backend=b2&ex=6ac69c2c&is=6ac54aac&hm=c0b3f4a6541a8ad6580cc0c77880c663863d518706bd70cf0e573ef0033c064c&"
+
+
+# ==================================================
+# 1. COMANDO PREVIA: "SE ACERCA LA LUNA" (SIN IMAGEN)
+# ==================================================
+@bot.command(name="previa", aliases=["lunasin"])
+async def aviso_previa_luna(ctx):
+    # 1. Borrar el mensaje del comando inmediatamente
+    try:
+        await ctx.message.delete()
+    except Exception:
+        pass
+
+    # 2. Verificar rol de Staff
+    rol_staff = ctx.guild.get_role(ID_ROL_STAFF)
+    if rol_staff not in ctx.author.roles:
+        return
+
+    # 3. Obtener canal de destino
+    canal_avisos = ctx.guild.get_channel(ID_CANAL_AVISOS)
+    if not canal_avisos:
+        print("❌ Error: No se encontró el canal de avisos.")
+        return
+
+    # Mencionar rol de aventuras
+    rol_ping = ctx.guild.get_role(ID_ROL_AVENTURA)
+    mencion_rol = rol_ping.mention if rol_ping else f"<@&{ID_ROL_AVENTURA}>"
+
+    # 🕯️ Embed elegante SIN IMAGEN
+    embed_previa = discord.Embed(
+        title="⏳ • ¡LA LUNA DE SANGRE SE ACERCA! • ⏳",
+        description=(
+            f"¡Atención {mencion_rol}!\n\n"
+            "🕯️ **Se ha detectado la aproximación de la Luna de Sangre.**\n"
+            "Preparen sus mascotas y equipos. ¡El evento iniciará muy pronto!"
+        ),
+        color=0xFF7518  # Naranja Calabaza
+    )
+    embed_previa.set_footer(text=f"{ctx.guild.name} • Alerta Preventiva")
+
+    await canal_avisos.send(content=f"🔔 {mencion_rol}", embed=embed_previa)
+    print(f"✅ Éxito: Comando !previa ejecutado por {ctx.author.name}")
+
+
+# ==================================================
+# 2. COMANDO EVENTO ACTIVO: "LUNA DE SANGRE" (CON IMAGEN)
+# ==================================================
+@bot.command(name="luna")
+async def activar_luna_sangre(ctx):
+    # 1. Borrar el mensaje del comando inmediatamente
+    try:
+        await ctx.message.delete()
+    except Exception:
+        pass
+
+    # 2. Verificar rol de Staff
+    rol_staff = ctx.guild.get_role(ID_ROL_STAFF)
+    if rol_staff not in ctx.author.roles:
+        return
+
+    # 3. Obtener canal de destino
+    canal_avisos = ctx.guild.get_channel(ID_CANAL_AVISOS)
+    if not canal_avisos:
+        print("❌ Error: No se encontró el canal de avisos.")
+        return
+
+    # Mencionar rol de aventuras
+    rol_ping = ctx.guild.get_role(ID_ROL_AVENTURA)
+    mencion_rol = rol_ping.mention if rol_ping else f"<@&{ID_ROL_AVENTURA}>"
+
+    # 🎃 🖼️ Embed con BANNER E IMAGEN
+    embed_activo = discord.Embed(
+        title="🎃🔴 • ¡LA LUNA DE SANGRE HA LLEGADO! • 🔴🎃",
+        description=(
+            f"¡Atención {mencion_rol}!\n\n"
+            "🌕🔴 **¡La Luna de Sangre está activa en estos momentos!**\n\n"
+            "⚔️ **Bajo la luna carmesí, las aventuras otorgan mayor probabilidad de objetos raros y valiosos.**\n"
+            "¡Envíen a sus mascotas a la aventura ahora mismo antes de que desaparezca!"
+        ),
+        color=0x8B0000  # Rojo Carmesí
+    )
+    
+    # Se añade la imagen
+    embed_activo.set_image(url=URL_BANNER_LUNA_SANGRE)
+    embed_activo.set_footer(text=f"{ctx.guild.name} • Evento Oficial de Luna de Sangre")
+
+    await canal_avisos.send(content=f"🚨 {mencion_rol}", embed=embed_activo)
+    print(f"✅ Éxito: Comando !luna ejecutado por {ctx.author.name}")
 
 if __name__ == "__main__":
     keep_alive() 
