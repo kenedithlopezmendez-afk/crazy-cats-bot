@@ -1144,7 +1144,7 @@ async def antes_de_loop():
     await bot.wait_until_ready()
 
 # Iniciar la tarea automática
-sistema_gestion_boxes.start()
+# sistema_gestion_boxes.start()
 
 # EJECUCION INICIAL NO TOCAR NADA
 if __name__ == "__main__":
