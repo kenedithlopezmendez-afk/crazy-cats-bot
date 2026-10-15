@@ -42,13 +42,6 @@ intents.messages = True
 
 bot = commands.Bot(command_prefix="?", intents=intents)
 
-# -------- CONFIGURACIÓN DE IDs DE TU SERVIDOR --------
-CANAL_AVENTURAS = 1436358970284572723  # Canal donde el bot enviará el ping
-ROL_AVENTURA = 1436361900215500870     # Rol a etiquetar
-CANAL_DETECCION = 1436358970284572723  # Canal exclusivo donde juega Nekotina
-
-# ID DE NEKOTINA (Cambia este ID si usas la versión App global o el Bot clásico)
-NEKOTINA_ID = 429457053791158281  
 
 # 🌟 TU NUEVO ID: Reemplaza este número por el ID real de tu rol de Staff
 ROL_STAFF_JUEGO = 937028989854298172
@@ -59,141 +52,6 @@ ID_ROL_PARTICIPANTE = 1481390471153717319 # ID del rol Mishi participante
 # Variable global para prevenir duplicados por edición o doble evento
 ultimo_aviso_tiempo = 0
 
-# ==================================================
-# NÚCLEO DEL DETECTOR (CORREGIDO Y MEJORADO)
-# ==================================================
-async def verificar_y_enviar_alerta(message):
-    global ultimo_aviso_tiempo
-
-    # 1. RESTRICCIÓN: Detectar SOLO en el canal especificado
-    if message.channel.id != CANAL_DETECCION:
-        return
-
-    # 2. RESTRICCIÓN: Detectar SOLO mensajes que vengan de Nekotina
-    if message.author.id != NEKOTINA_ID:
-        return
-
-    # Si no contiene embeds, ignoramos
-    if not message.embeds:
-        return
-
-    # 🛑 CONTROL ANTI-DOBLE PING (Si pasaron menos de 20 segundos desde la última alerta, se ignora)
-    tiempo_actual = time.time()
-    if tiempo_actual - ultimo_aviso_tiempo < 20:
-        return
-
-    # Mapeo de zonas según las palabras clave secundarias
-    salas = {
-        "magma": {
-            "titulo": "🌋 ¡SALA DEL INFIERNO DETECTADA!",
-            "descripcion": "🔥 El calor aumenta, ¡prepara tus mascotas y únete para ir al infierno!",
-            "color": 0xFF5500
-        },
-        "remotas": {
-            "titulo": "🏝 ¡SALA DE TIERRAS REMOTAS DETECTADA!",
-            "descripcion": "✨ ¡Una zona misteriosa ha aparecido! Corran a unirse.",
-            "color": 0x00AAFF
-        },
-        "carnaval": {
-            "titulo": "🎃 ¡SALA DE LUNA SANGRIENTA MUAJAJA!",
-            "descripcion": "🎃 ¡La luna de sangre ha llegado, envia a tus pets y suerte!",
-            "color": 0x8B0000
-        },
-        "luna": {
-            "titulo": "🎃 ¡SALA DE LUNA SANGRIENTA MUAJAJA!",
-            "descripcion": "🎃 ¡La luna de sangre ha llegado, envia a tus pets y suerte!",
-            "color": 0x8B0000
-        }
-    }
-
-    # Leer el contenido de los embeds
-    for embed in message.embeds:
-        texto = ""
-
-        # 🔍 Capturar también el Author (importante para avisos de Nekotina)
-        if embed.author and embed.author.name:
-            texto += f" {embed.author.name.lower()}"
-
-        if embed.title:
-            texto += f" {embed.title.lower()}"
-
-        if embed.description:
-            texto += f" {embed.description.lower()}"
-
-        # Escanear también los campos internos
-        for field in embed.fields:
-            texto += f" {field.name.lower()} {field.value.lower()}"
-
-        # 3. FILTRO: Debe detectar la palabra "aventura"
-        if "aventura" in texto:
-            
-            zona_encontrada = None
-            
-            for palabra, datos in salas.items():
-                if palabra in texto:
-                    zona_encontrada = datos
-                    break 
-            
-            # Formato genérico si no encuentra una zona del diccionario
-            if not zona_encontrada:
-                zona_encontrada = {
-                    "titulo": "⚔️ ¡NUEVA AVENTURA DETECTADA!",
-                    "descripcion": "¡Una sala de aventura ha aparecido! Revisen el canal.",
-                    "color": 0x2f3136
-                }
-
-            canal_alertas = bot.get_channel(CANAL_AVENTURAS)
-            if canal_alertas:
-                # 🛑 Registrar tiempo actual para bloquear el segundo disparo por edición
-                ultimo_aviso_tiempo = tiempo_actual
-
-                nuevo_embed = discord.Embed(
-                    title=zona_encontrada["titulo"],
-                    description=zona_encontrada["descripcion"],
-                    color=zona_encontrada["color"]
-                )
-
-                nuevo_embed.add_field(
-                    name="📍 Ubicación de la Sala",
-                    value=message.channel.mention,
-                    inline=False
-                )
-
-                nuevo_embed.set_footer(
-                    text="Crazy Cats • Auto-Tracker v3"
-                )
-
-                # Realiza el ping al rol fuera del embed
-                await canal_alertas.send(
-                    content=f"🔔 <@&{ROL_AVENTURA}>",
-                    embed=nuevo_embed
-                )
-                print(f"✅ Éxito: Alerta enviada para formato '{zona_encontrada['titulo']}'")
-            return
-
-# ==================================================
-# EVENTOS DE ESCUCHA DEL BOT
-# ==================================================
-@bot.event
-async def on_ready():
-    print(f"✅ Crazy Tracker en línea como: {bot.user}")
-
-@bot.event
-async def on_message(message):
-    if message.author == bot.user:
-        return
-
-    await verificar_y_enviar_alerta(message)
-    await bot.process_commands(message)
-
-@bot.event
-async def on_message_edit(before, after):
-    if after.author == bot.user:
-        return
-
-    # Ahora con la variable ultimo_aviso_tiempo, si la edición ocurre segundos después,
-    # el bot la ignorará limpiamente sin duplicar el ping.
-    await verificar_y_enviar_alerta(after)
 
 # ==================================================
 # 🌟 MINIJUEGO: PLATAFORMAS DINÁMICAS (1 MIN REGISTRO + 15 SEG ELECCIÓN) 🌟
@@ -1145,6 +1003,185 @@ async def antes_de_loop():
 
 # Iniciar la tarea automática
 # sistema_gestion_boxes.start()
+
+# 📌 CONFIGURACIÓN DE IDs
+ID_CANAL_ANUNCIOS_ADV = 1436358970284572723  # Canal donde se enviarán los embeds
+ID_ROL_HORA_AVENTURA = 1436361900215500870    # ⚠️ REEMPLAZA con la ID del rol "Hora de Aventura"
+ID_ROL_PING_ADV = 1436361900215500870         # ID del rol a etiquetar en el aviso (@Adventure)
+
+
+# Función auxiliar para validar si el usuario tiene el rol por su ID
+def tiene_rol_aventura(ctx):
+    rol = ctx.guild.get_role(ID_ROL_HORA_AVENTURA)
+    return (rol in ctx.author.roles) or ctx.author.guild_permissions.administrator
+
+
+# ==================================================
+# 1. ZONA: MAGMA (Normal y Buff)
+# ==================================================
+
+@bot.command(name="magma")
+async def aventura_magma(ctx):
+    if not tiene_rol_aventura(ctx):
+        return await ctx.send("❌ No tienes el rol autorizado para usar este comando.", delete_after=5)
+
+    try:
+        await ctx.message.delete()
+    except Exception:
+        pass
+
+    canal = ctx.guild.get_channel(ID_CANAL_ANUNCIOS_ADV)
+    rol_ping = ctx.guild.get_role(ID_ROL_PING_ADV)
+    mencion = rol_ping.mention if rol_ping else f"<@&{ID_ROL_PING_ADV}>"
+
+    embed = discord.Embed(
+        title="🌋 Sala de Magma Detectada",
+        description="¡Prepara tus mascotas y entra en la zona de magma!",
+        color=0xE67E22
+    )
+    embed.add_field(name="🧭 Aventura Disponible", value="¡Zona activa por tiempo limitado!", inline=False)
+    embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/1450135217493901322/1560402211794583573/tumblr_pgq1u9I4r91utevtho1_500-3579210553.gif?ex=6ad2954e&is=6ad143ce&hm=e2b61767f681691aac10a0df88fa5be2aea6343c125b7e874b47c0e3e58a1091")
+    embed.set_footer(text=f"{ctx.guild.name} • Sistema de Detección")
+
+    await canal.send(content=f"Ping: {mencion}", embed=embed)
+
+
+@bot.command(name="magmabuff")
+async def aventura_magmabuff(ctx):
+    if not tiene_rol_aventura(ctx):
+        return await ctx.send("❌ No tienes el rol autorizado para usar este comando.", delete_after=5)
+
+    try:
+        await ctx.message.delete()
+    except Exception:
+        pass
+
+    canal = ctx.guild.get_channel(ID_CANAL_ANUNCIOS_ADV)
+    rol_ping = ctx.guild.get_role(ID_ROL_PING_ADV)
+    mencion = rol_ping.mention if rol_ping else f"<@&{ID_ROL_PING_ADV}>"
+
+    embed = discord.Embed(
+        title="🌋🔥 Sala de Magma [BUFF: Mitad de Cooldown]",
+        description="¡El buff de velocidad está activo! Entra a la zona de magma con cooldown reducido.",
+        color=0xD35400
+    )
+    embed.add_field(name="🧭 Aventura con Buff Activo", value="¡Aprovecha al máximo la reducción de tiempo!", inline=False)
+    embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/1450135217493901322/1560402211794583573/tumblr_pgq1u9I4r91utevtho1_500-3579210553.gif?ex=6ad2954e&is=6ad143ce&hm=e2b61767f681691aac10a0df88fa5be2aea6343c125b7e874b47c0e3e58a1091")
+    embed.set_footer(text=f"{ctx.guild.name} • Sistema de Detección con Buff")
+
+    await canal.send(content=f"Ping: {mencion} ⚡ **[BUFF ACTIVO]**", embed=embed)
+
+
+# ==================================================
+# 2. ZONA: TIERRAS REMOTAS (Normal y Buff)
+# ==================================================
+
+@bot.command(name="tierras", aliases=["tierrasremotas"])
+async def aventura_tierras(ctx):
+    if not tiene_rol_aventura(ctx):
+        return await ctx.send("❌ No tienes el rol autorizado para usar este comando.", delete_after=5)
+
+    try:
+        await ctx.message.delete()
+    except Exception:
+        pass
+
+    canal = ctx.guild.get_channel(ID_CANAL_ANUNCIOS_ADV)
+    rol_ping = ctx.guild.get_role(ID_ROL_PING_ADV)
+    mencion = rol_ping.mention if rol_ping else f"<@&{ID_ROL_PING_ADV}>"
+
+    embed = discord.Embed(
+        title="🌲 Sala de Tierras Remotas Detectada",
+        description="¡Prepara tus mascotas y adéntrate en las profundidades de las tierras remotas!",
+        color=0x27AE60
+    )
+    embed.add_field(name="🧭 Aventura Disponible", value="¡Nuevos horizontes por explorar!", inline=False)
+    embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/1450135217493901322/1560403598876090398/paisajes-del-mundo-nature-1482910422.gif?ex=6ad29698&is=6ad14518&hm=f0004a634d4f0ee95d8daa0573b1e0c0cd14e6aaf970552624d55709b666da8c")
+    embed.set_footer(text=f"{ctx.guild.name} • Sistema de Detección")
+
+    await canal.send(content=f"Ping: {mencion}", embed=embed)
+
+
+@bot.command(name="tierrasbuff")
+async def aventura_tierrasbuff(ctx):
+    if not tiene_rol_aventura(ctx):
+        return await ctx.send("❌ No tienes el rol autorizado para usar este comando.", delete_after=5)
+
+    try:
+        await ctx.message.delete()
+    except Exception:
+        pass
+
+    canal = ctx.guild.get_channel(ID_CANAL_ANUNCIOS_ADV)
+    rol_ping = ctx.guild.get_role(ID_ROL_PING_ADV)
+    mencion = rol_ping.mention if rol_ping else f"<@&{ID_ROL_PING_ADV}>"
+
+    embed = discord.Embed(
+        title="🌲⚡ Sala de Tierras Remotas [BUFF: Mitad de Cooldown]",
+        description="¡El buff de velocidad está activo en las Tierras Remotas!",
+        color=0x229954
+    )
+    embed.add_field(name="🧭 Aventura con Buff Activo", value="¡Apresúrate antes de que termine el evento!", inline=False)
+    embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/1450135217493901322/1560403598876090398/paisajes-del-mundo-nature-1482910422.gif?ex=6ad29698&is=6ad14518&hm=f0004a634d4f0ee95d8daa0573b1e0c0cd14e6aaf970552624d55709b666da8c")
+    embed.set_footer(text=f"{ctx.guild.name} • Sistema de Detección con Buff")
+
+    await canal.send(content=f"Ping: {mencion} ⚡ **[BUFF ACTIVO]**", embed=embed)
+
+
+# ==================================================
+# 3. ZONA: CARNAVAL (Normal y Buff)
+# ==================================================
+
+@bot.command(name="carnaval")
+async def aventura_carnaval(ctx):
+    if not tiene_rol_aventura(ctx):
+        return await ctx.send("❌ No tienes el rol autorizado para usar este comando.", delete_after=5)
+
+    try:
+        await ctx.message.delete()
+    except Exception:
+        pass
+
+    canal = ctx.guild.get_channel(ID_CANAL_ANUNCIOS_ADV)
+    rol_ping = ctx.guild.get_role(ID_ROL_PING_ADV)
+    mencion = rol_ping.mention if rol_ping else f"<@&{ID_ROL_PING_ADV}>"
+
+    embed = discord.Embed(
+        title="🎪 Sala de Carnaval Detectada",
+        description="¡El evento temporal ha comenzado! Prepara tus mascotas y disfruta del carnaval.",
+        color=0x9B59B6
+    )
+    embed.add_field(name="🧭 Aventura Disponible", value="¡Recompensas especiales por tiempo limitado!", inline=False)
+    embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/1450135217493901322/1560403994571178074/full-shot-fireworks-1729999030.gif?ex=6ad296f7&is=6ad14577&hm=37cf72f35dc56a53d5094c6b2f9b9df48d1085ecdc6a7a8d23edf28749e27999")
+    embed.set_footer(text=f"{ctx.guild.name} • Sistema de Detección Temporal")
+
+    await canal.send(content=f"Ping: {mencion}", embed=embed)
+
+
+@bot.command(name="carnavalbuff")
+async def aventura_carnavalbuff(ctx):
+    if not tiene_rol_aventura(ctx):
+        return await ctx.send("❌ No tienes el rol autorizado para usar este comando.", delete_after=5)
+
+    try:
+        await ctx.message.delete()
+    except Exception:
+        pass
+
+    canal = ctx.guild.get_channel(ID_CANAL_ANUNCIOS_ADV)
+    rol_ping = ctx.guild.get_role(ID_ROL_PING_ADV)
+    mencion = rol_ping.mention if rol_ping else f"<@&{ID_ROL_PING_ADV}>"
+
+    embed = discord.Embed(
+        title="🎪⚡ Sala de Carnaval [BUFF: Mitad de Cooldown]",
+        description="¡El buff de mitad de cooldown está activo para el Carnaval temporal!",
+        color=0x8E44AD
+    )
+    embed.add_field(name="🧭 Aventura con Buff Activo", value="¡Multiplica tus ganancias antes de que finalice!", inline=False)
+    embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/1450135217493901322/1560403994571178074/full-shot-fireworks-1729999030.gif?ex=6ad296f7&is=6ad14577&hm=37cf72f35dc56a53d5094c6b2f9b9df48d1085ecdc6a7a8d23edf28749e27999")
+    embed.set_footer(text=f"{ctx.guild.name} • Sistema de Detección con Buff")
+
+    await canal.send(content=f"Ping: {mencion} ⚡ **[BUFF ACTIVO]**", embed=embed)
 
 # EJECUCION INICIAL NO TOCAR NADA
 if __name__ == "__main__":
