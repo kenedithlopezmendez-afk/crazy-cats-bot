@@ -759,10 +759,12 @@ async def activar_luna_sangre(ctx):
     await canal_avisos.send(content=f"🚨 {mencion_rol}", embed=embed_activo)
     print(f"✅ Éxito: Comando !luna ejecutado por {ctx.author.name}")
 
-    # 📌 CONFIGURACIÓN DE IDs Y CANALES
-ID_CANAL_LITTLE_BOXES = 1419188163376840784  # Canal donde nacen los hilos (#little-boxes)
-ID_CANAL_LOGS = 1477110955669323899          # Canal de logs/registro
-ID_ROL_STAFF = 955211100700426240           # ID del Rol de Staff
+# ==================================================
+# 📌 CONFIGURACIÓN DE IDS
+# ==================================================
+ID_CANAL_LITTLE_BOXES = 1419188163376840784  # Canal principal (#little-boxes)
+ID_CANAL_LOGS = 1477110955669323899          # Canal de registros / logs
+ID_ROL_STAFF = 955211100700426240            # ⚠️ Reemplaza con la ID real del rol "S-Camita"
 
 # ==================================================
 # BASE DE DATOS (SQLite)
@@ -770,7 +772,6 @@ ID_ROL_STAFF = 955211100700426240           # ID del Rol de Staff
 conn = sqlite3.connect("little_boxes.db")
 cursor = conn.cursor()
 
-# Tabla de Boxes
 cursor.execute('''
     CREATE TABLE IF NOT EXISTS boxes (
         thread_id INTEGER PRIMARY KEY,
@@ -785,42 +786,52 @@ cursor.execute('''
 conn.commit()
 
 
-# ==================================================
-# COMANDO: CREAR LITTLE BOX CON MÚLTIPLES MIEMBROS
-# ==================================================
-@bot.command(name="crearbox")
-async def crear_box(ctx, tipo: str, nombre_box: str, *ids_usuarios: int):
-    """
-    Sintaxis:
-    !crearbox Tipo NombreBox ID1 ID2 ID3...
-    Ejemplo (1 persona):  !crearbox Solo DaweeBedside 123456789012345678
-    Ejemplo (Múltiples):  !crearbox Duo  ParedesBox  1234567890 9876543210
-    """
-    
-    # 1. Verificar Permisos de Staff
+# Función auxiliar para verificar si es Staff por ID
+def es_staff(ctx):
     rol_staff = ctx.guild.get_role(ID_ROL_STAFF)
-    if rol_staff not in ctx.author.roles:
-        return
+    return (rol_staff in ctx.author.roles) or ctx.author.guild_permissions.administrator
 
-    # 2. Validar que hayan proporcionado al menos una ID
+
+# ==================================================
+# 📦 1. COMANDO: CREAR BOX (!crearbox)
+# ==================================================
+
+@bot.command(name="crearbox")
+async def crear_box(ctx, tipo: str, nombre_box: str, *ids_usuarios: str):
+    """
+    Sintaxis: !crearbox Tipo "Nombre Box" ID_Dueño ID_Acompañante1 ...
+    Ejemplo:  !crearbox Duo "Camas₊˚♡" 123456789012345678 987654321098765432
+    """
+    if not es_staff(ctx):
+        return await ctx.send("❌ No tienes permisos para usar este comando.", delete_after=5)
+
     if not ids_usuarios:
-        return await ctx.send("❌ Debes incluir al menos la ID del dueño. Ejemplo: `!crearbox Mini MiBox 1234567890`", delete_after=8)
+        return await ctx.send("❌ Debes incluir al menos la ID del dueño.\nEjemplo: `!crearbox Mini \"Mi Box\" 1234567890`", delete_after=8)
 
-    # 3. Límite máximo de 10 personas
-    if len(ids_usuarios) > 10:
+    # Limpiar y filtrar IDs de usuarios de forma segura
+    ids_limpias = []
+    for raw_id in ids_usuarios:
+        clean_id = raw_id.replace("<@", "").replace(">", "").replace("!", "")
+        if clean_id.isdigit():
+            ids_limpias.append(int(clean_id))
+
+    if not ids_limpias:
+        return await ctx.send("❌ Ninguna de las IDs ingresadas es válida.", delete_after=8)
+
+    if len(ids_limpias) > 10:
         return await ctx.send("⚠️ El límite máximo de participantes es de 10 personas.", delete_after=8)
 
     canal_principal = ctx.guild.get_channel(ID_CANAL_LITTLE_BOXES)
     canal_logs = ctx.guild.get_channel(ID_CANAL_LOGS)
 
     if not canal_principal or not canal_logs:
-        return await ctx.send("❌ Error: Verifica la configuración de los canales.")
+        return await ctx.send("❌ Error crítico: Verifica los IDs de los canales configurados.", delete_after=8)
 
-    # 4. Obtener objetos de Usuario/Miembro desde las IDs
+    # Búsqueda blindada por API (fetch_member)
     miembros_agregados = []
     dueno = None
 
-    for idx, user_id in enumerate(ids_usuarios):
+    for idx, user_id in enumerate(ids_limpias):
         member = ctx.guild.get_member(user_id)
         if not member:
             try:
@@ -831,88 +842,95 @@ async def crear_box(ctx, tipo: str, nombre_box: str, *ids_usuarios: int):
         if member:
             miembros_agregados.append(member)
             if idx == 0:
-                dueno = member  # La primera ID asignada es el dueño principal
+                dueno = member
 
     if not dueno:
-        return await ctx.send("❌ No se pudo encontrar al dueño principal con la primera ID facilitada.", delete_after=8)
+        return await ctx.send("❌ No se pudo encontrar al usuario dueño con la primera ID provista.", delete_after=8)
 
-    # 5. Cálculo de Fechas (20 Días)
+    # Fechas y Timestamps (20 días exactos)
     ahora = datetime.now()
     expiracion = ahora + timedelta(days=20)
 
-    timestamp_adquisicion = int(ahora.timestamp())
-    timestamp_expiracion = int(expiracion.timestamp())
+    ts_adquisicion = int(ahora.timestamp())
+    ts_expiracion = int(expiracion.timestamp())
 
-    # 6. Crear Hilo Privado
+    # Crear el Hilo Privado en Discord (Soporta fuentes y emojis con total libertad en el nombre)
     hilo = await canal_principal.create_thread(
         name=f"📦・{nombre_box}",
         type=discord.ChannelType.private_thread,
         invitable=False
     )
 
-    # 7. Meter a todos los usuarios al Hilo Privado
-    menciones_miembros = []
+    # 🔐 Asegurar adición y permisos de escritura al Dueño y Acompañantes
     for member in miembros_agregados:
-        await hilo.add_user(member)
-        menciones_miembros.append(member.mention)
+        try:
+            await hilo.add_user(member)
+        except Exception as e:
+            print(f"Error al añadir a {member.name} al hilo: {e}")
 
-    # 8. Guardar en la Base de Datos
+    # Asegurar que el Staff (S-Camita por ID) también tenga acceso al hilo creado
+    rol_staff = ctx.guild.get_role(ID_ROL_STAFF)
+    if rol_staff:
+        for member in rol_staff.members:
+            try:
+                await hilo.add_user(member)
+            except Exception:
+                pass
+
+    # Guardar en Base de Datos SQLite
     cursor.execute(
         "INSERT INTO boxes VALUES (?, ?, ?, ?, ?, ?, 0)",
         (hilo.id, dueno.id, nombre_box, tipo, ahora.isoformat(), expiracion.isoformat())
     )
     conn.commit()
 
-    # ----------------------------------------------------
-    # 📩 EMBED DE BIENVENIDA (Dentro del Hilo Privado)
-    # ----------------------------------------------------
-    # Formatear la lista de usuarios
+    # Estructurar texto de integrantes
     if len(miembros_agregados) == 1:
         texto_integrantes = f"👤 **Dueño/a:** {dueno.mention}"
     else:
-        lista_menciones = "\n".join([f"• {m.mention}" for m in miembros_agregados])
-        texto_integrantes = f"👑 **Dueño/a:** {dueno.mention}\n👥 **Integrantes:**\n{lista_menciones}"
+        acompanantes = [m.mention for m in miembros_agregados[1:]]
+        texto_integrantes = f"👑 **Dueño/a:** {dueno.mention}\n👥 **Acompañantes ({len(acompanantes)}):**\n" + "\n".join([f"• {acc}" for acc in acompanantes])
 
+    # ✨ EMBED DE BIENVENIDA ESTÉTICO
     embed_bienvenida = discord.Embed(
         title=f"📦 ✨ ¡Bienvenidos a {nombre_box}! ✨ 📦",
         description=(
-            f"¡Felicidades! Su **Little Box** ha sido creada exitosamente.\n\n"
+            f"¡Felicidades! Su **Little Box** ha sido creada y configurada con éxito.\n\n"
+            f"─────────────── Por favor lean las pautas ───────────────\n"
             f"{texto_integrantes}\n\n"
-            f"🗓️ **Adquisición:** `<t:{timestamp_adquisicion}:F>`\n"
-            f"⏳ **Vencimiento:** `<t:{timestamp_expiracion}:F>` (`<t:{timestamp_expiracion}:R>`)\n\n"
+            f"🗓️ **Adquisición:** `<t:{ts_adquisicion}:F>`\n"
+            f"⏳ **Vencimiento:** `<t:{ts_expiracion}:F>` (`<t:{ts_expiracion}:R>`)\n\n"
             f"📜 **REGLAS DE LA LITTLE BOX:**\n"
-            f"1. Respetar los Términos de Servicio y normas del servidor.\n"
-            f"2. Espacio privado y de uso libre para los integrantes autorizados.\n"
-            f"3. Si desean renovar su estancia por +20 días, deben solicitarlo al Staff antes de la fecha de vencimiento.\n"
-            f"4. Al vencer el plazo sin renovación, el espacio será eliminado automáticamente."
+            f"• **1.** Respetar los Términos de Servicio y normas generales de Discord y del servidor.\n"
+            f"• **2.** Este espacio es privado y de uso exclusivo para los integrantes autorizados.\n"
+            f"• **3.** Para renovar su estancia por +20 días, contacten al Staff antes del vencimiento.\n"
+            f"• **4.** Al cumplirse el plazo sin renovación, el hilo se eliminará de forma automática."
         ),
-        color=0xF1C40F # Dorado / Amarillo
+        color=0xFFB6C1
     )
     embed_bienvenida.set_thumbnail(url=dueno.display_avatar.url)
-    embed_bienvenida.set_footer(text=f"ID de Little Box: {hilo.id} • Crazy Cats")
+    embed_bienvenida.set_footer(text=f"ID de Little Box: {hilo.id} • Servidor {ctx.guild.name}", icon_url=ctx.guild.icon.url if ctx.guild.icon else None)
 
-    # Enviar bienvenida al Hilo Privado mencionando a los integrantes
-    await hilo.send(content=" ".join(menciones_miembros), embed=embed_bienvenida)
+    menciones_str = " ".join([m.mention for m in miembros_agregados])
+    await hilo.send(content=f"👋 ¡Hola {menciones_str}!", embed=embed_bienvenida)
 
-    # ----------------------------------------------------
-    # 📋 EMBED DE LOGS (Al canal de Registro #little-boxes)
-    # ----------------------------------------------------
+    # ✨ EMBED DE LOG DE CREACIÓN
     embed_log = discord.Embed(
-        title="Little Box creada",
-        color=0x2ECC71 # Verde
+        title="📥 Nueva Little Box Registrada",
+        color=0x2ECC71,
+        timestamp=datetime.now()
     )
     embed_log.description = (
-        f"• **Nombre:** {nombre_box}\n"
+        f"• **Nombre:** `{nombre_box}`\n"
+        f"• **Tipo:** `{tipo}`\n"
         f"• **Dueño/a:** {dueno.name} ({dueno.mention})\n"
-        f"• **Tipo:** {tipo}\n"
-        f"• **Adquisición:** `<t:{timestamp_adquisicion}:f>`\n"
-        f"• **Expiración:** `<t:{timestamp_expiracion}:f>` (`en 20 días`)"
+        f"• **Total Integrantes:** `{len(miembros_agregados)}`\n"
+        f"• **Expiración:** `<t:{ts_expiracion}:f>` (`en 20 días`)"
     )
-    embed_log.set_footer(text=f"ID de Little Box: {hilo.id}", icon_url=dueno.display_avatar.url)
+    embed_log.set_footer(text=f"ID Hilo: {hilo.id}", icon_url=dueno.display_avatar.url)
 
     await canal_logs.send(embed=embed_log)
 
-    # Borrar el comando activador para mantener limpio el chat
     try:
         await ctx.message.delete()
     except Exception:
@@ -920,8 +938,126 @@ async def crear_box(ctx, tipo: str, nombre_box: str, *ids_usuarios: int):
 
 
 # ==================================================
-# TAREA EN SEGUNDO PLANO (RECORDATORIO & EXPIRACIÓN)
+# 🔄 2. COMANDO: EXTENDER BOX (!extenderbox)
 # ==================================================
+
+@bot.command(name="extenderbox")
+async def extender_box(ctx, thread_id: int):
+    """Sintaxis: !extenderbox ID_DEL_HILO"""
+    if not es_staff(ctx):
+        return await ctx.send("❌ No tienes permisos para usar este comando.", delete_after=5)
+
+    cursor.execute("SELECT * FROM boxes WHERE thread_id = ?", (thread_id,))
+    box = cursor.fetchone()
+
+    if not box:
+        return await ctx.send("❌ No se encontró ninguna Little Box registrada con esa ID.", delete_after=6)
+
+    _, owner_id, nombre, tipo, str_adq, str_exp_iso, _ = box
+
+    fecha_exp_actual = datetime.fromisoformat(str_exp_iso)
+    nueva_expiracion = fecha_exp_actual + timedelta(days=20)
+    ahora = datetime.now()
+
+    cursor.execute(
+        "UPDATE boxes SET fecha_expiracion = ?, aviso_enviado = 0 WHERE thread_id = ?",
+        (nueva_expiracion.isoformat(), thread_id)
+    )
+    conn.commit()
+
+    dueno = ctx.guild.get_member(owner_id)
+    mencion_dueno = dueno.mention if dueno else f"<@{owner_id}>"
+    nombre_dueno = dueno.name if dueno else "Usuario Desconocido"
+    avatar_dueno = dueno.display_avatar.url if dueno else bot.user.display_avatar.url
+
+    ts_nueva_exp = int(nueva_expiracion.timestamp())
+    canal_logs = ctx.guild.get_channel(ID_CANAL_LOGS)
+
+    embed_log = discord.Embed(
+        title="🔄 Little Box Extendida (+20 días)",
+        color=0xE91E63,
+        timestamp=datetime.now()
+    )
+    embed_log.description = (
+        f"• **Nombre:** `{nombre}`\n"
+        f"• **Dueño/a:** {nombre_dueno} ({mencion_dueno})\n"
+        f"• **Tipo:** `{tipo}`\n"
+        f"• **Nueva Expiración:** `<t:{ts_nueva_exp}:f>` (`<t:{ts_nueva_exp}:R>`)"
+    )
+    embed_log.set_footer(text=f"ID Hilo: {thread_id}", icon_url=avatar_dueno)
+
+    if canal_logs:
+        await canal_logs.send(embed=embed_log)
+
+    try:
+        hilo = await bot.fetch_channel(thread_id)
+        if isinstance(hilo, discord.Thread):
+            embed_aviso_hilo = discord.Embed(
+                title="✨ ¡ESTANCIA RENOVADA! ✨",
+                description=(
+                    f"¡Buenas noticias! El Staff ha extendido el tiempo de esta **Little Box**.\n\n"
+                    f"⏳ **Nuevo Vencimiento:** `<t:{ts_nueva_exp}:F>` (`<t:{ts_nueva_exp}:R>`)"
+                ),
+                color=0x2ECC71
+            )
+            await hilo.send(embed=embed_aviso_hilo)
+    except Exception:
+        pass
+
+    try:
+        await ctx.message.delete()
+    except Exception:
+        pass
+
+
+# ==================================================
+# 🗑️ 3. COMANDO: BORRAR BOX (!borrarbox)
+# ==================================================
+
+@bot.command(name="borrarbox")
+async def borrar_box(ctx, thread_id: int):
+    """Sintaxis: !borrarbox ID_DEL_HILO"""
+    if not es_staff(ctx):
+        return await ctx.send("❌ No tienes permisos para usar este comando.", delete_after=5)
+
+    try:
+        hilo = await bot.fetch_channel(thread_id)
+        nombre_hilo = hilo.name
+        await hilo.delete()
+    except Exception:
+        nombre_hilo = "Hilo ya inexistente o inaccesible"
+
+    cursor.execute("SELECT owner_id, tipo FROM boxes WHERE thread_id = ?", (thread_id,))
+    cursor.fetchone()
+    
+    cursor.execute("DELETE FROM boxes WHERE thread_id = ?", (thread_id,))
+    conn.commit()
+
+    canal_logs = ctx.guild.get_channel(ID_CANAL_LOGS)
+    if canal_logs:
+        embed_log = discord.Embed(
+            title="🗑️ Little Box Eliminada a la Fuerza",
+            color=0xE74C3C,
+            timestamp=datetime.now()
+        )
+        embed_log.description = (
+            f"• **Hilo:** `{nombre_hilo}`\n"
+            f"• **ID del Hilo:** `{thread_id}`\n"
+            f"• **Acción ejecutada por:** {ctx.author.mention}"
+        )
+        await canal_logs.send(embed=embed_log)
+
+    await ctx.send(f"✅ La Little Box con ID `{thread_id}` ha sido eliminada correctamente.", delete_after=6)
+    try:
+        await ctx.message.delete()
+    except Exception:
+        pass
+
+
+# ==================================================
+# ⏰ 4. TAREA AUTOMÁTICA EN SEGUNDO PLANO
+# ==================================================
+
 @tasks.loop(minutes=30)
 async def sistema_gestion_boxes():
     ahora = datetime.now()
@@ -933,42 +1069,37 @@ async def sistema_gestion_boxes():
     for box in todas_las_boxes:
         thread_id, owner_id, nombre, tipo, str_adq, str_exp_iso, aviso_enviado = box
         fecha_expiracion = datetime.fromisoformat(str_exp_iso)
-
         tiempo_restante = fecha_expiracion - ahora
+        ts_exp = int(fecha_expiracion.timestamp())
 
-        # ----------------------------------------------------
-        # 1. AVISO DE RECORDATORIO (1 Día / 24 Horas Antes)
-        # ----------------------------------------------------
+        # 🔔 Recordatorio 24 horas antes
         if timedelta(hours=0) < tiempo_restante <= timedelta(hours=24) and aviso_enviado == 0:
             try:
                 hilo = await bot.fetch_channel(thread_id)
                 if hilo:
                     dueno = bot.get_user(owner_id)
-                    mencion = dueno.mention if dueno else "Integrantes"
+                    mencion_dueno = dueno.mention if dueno else "Integrantes"
 
                     embed_recordatorio = discord.Embed(
-                        title="⚠️ ¡SU LITTLE BOX ESTÁ A PUNTO DE EXPIRAR!",
+                        title="⚠️ ¡SU LITTLE BOX ESTÁ A PUNTO DE VENCER!",
                         description=(
-                            f"¡Atención {mencion}!\n\n"
-                            f"⏰ Su Little Box **{nombre}** vencerá en menos de **24 horas**.\n"
-                            f"🗓️ **Fecha exacta de cierre:** `<t:{int(fecha_expiracion.timestamp())}:F>`\n\n"
-                            f"💡 *Por favor, contacten a un miembro del Staff si desean renovar la Box antes de su eliminación.*"
+                            f"¡Atención {mencion_dueno} y acompañantes!\n\n"
+                            f"⏰ Su Little Box **{nombre}** expirará en menos de **24 horas**.\n"
+                            f"🗓️ **Cierre programado:** `<t:{ts_exp}:F>` (`<t:{ts_exp}:R>`)\n\n"
+                            f"💡 *Si desean conservar su espacio, contacten al Staff para solicitar una renovación.*"
                         ),
-                        color=0xE67E22 # Naranja de advertencia
+                        color=0xF39C12
                     )
-                    await hilo.send(content=f"🔔 {mencion}", embed=embed_recordatorio)
+                    embed_recordatorio.set_footer(text="Aviso automático de expiración")
+                    await hilo.send(content=f"🔔 {mencion_dueno}", embed=embed_recordatorio)
 
-                    # Marcar aviso como enviado
                     cursor.execute("UPDATE boxes SET aviso_enviado = 1 WHERE thread_id = ?", (thread_id,))
                     conn.commit()
             except Exception as e:
-                print(f"Error al enviar recordatorio: {e}")
+                print(f"Error enviando recordatorio: {e}")
 
-        # ----------------------------------------------------
-        # 2. ELIMINACIÓN AUTOMÁTICA POR VENCIMIENTO
-        # ----------------------------------------------------
+        # ❌ Eliminación automática al cumplirse los 20 días
         elif ahora >= fecha_expiracion:
-            # Eliminar Hilo
             try:
                 hilo = await bot.fetch_channel(thread_id)
                 if hilo:
@@ -976,34 +1107,30 @@ async def sistema_gestion_boxes():
             except Exception:
                 pass
 
-            # Publicar Log de Cierre
             if canal_logs:
                 dueno = bot.get_user(owner_id)
-                mencion_dueno = dueno.mention if dueno else f"<@{owner_id}>"
+                m_dueno = dueno.mention if dueno else f"<@{owner_id}>"
 
                 embed_cerrado = discord.Embed(
-                    title="Little Box cerrada / eliminada",
-                    description=(
-                        f"• **Nombre:** {nombre}\n"
-                        f"• **Dueño/a:** {mencion_dueno}\n"
-                        f"• **Razón:** Tiempo de expiración alcanzado (20 días transcurridos)."
-                    ),
-                    color=0x757575 # Gris
+                    title="🔒 Little Box Cerrada (Expirada)",
+                    color=0x7F8C8D,
+                    timestamp=datetime.now()
+                )
+                embed_cerrado.description = (
+                    f"• **Nombre:** `{nombre}`\n"
+                    f"• **Dueño/a:** {m_dueno}\n"
+                    f"• **Razón:** Plazo de 20 días finalizado sin renovación."
                 )
                 embed_cerrado.set_footer(text=f"ID de Little Box: {thread_id}")
                 await canal_logs.send(embed=embed_cerrado)
 
-            # Borrar de la Base de Datos
             cursor.execute("DELETE FROM boxes WHERE thread_id = ?", (thread_id,))
             conn.commit()
 
 @sistema_gestion_boxes.before_loop
 async def antes_de_loop():
     await bot.wait_until_ready()
-
-# Iniciar la tarea automática
-# sistema_gestion_boxes.start()
-
+    
 # 📌 CONFIGURACIÓN DE IDs
 ID_CANAL_ANUNCIOS_ADV = 1436358970284572723  # Canal donde se enviarán los embeds
 ID_ROL_HORA_AVENTURA = 1436361900215500870    # ⚠️ REEMPLAZA con la ID del rol "Hora de Aventura"
