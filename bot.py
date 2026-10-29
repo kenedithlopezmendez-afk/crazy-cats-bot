@@ -898,8 +898,8 @@ async def crear_box(ctx, tipo: str, nombre_box: str, *ids_usuarios: str):
             f"¡Felicidades! Su **Little Box** ha sido creada y configurada con éxito.\n\n"
             f"─────────────── Por favor lean las pautas ───────────────\n"
             f"{texto_integrantes}\n\n"
-            f"🗓️ **Adquisición:** `<t:{ts_adquisicion}:F>`\n"
-            f"⏳ **Vencimiento:** `<t:{ts_expiracion}:F>` (`<t:{ts_expiracion}:R>`)\n\n"
+            f"🗓️ **Adquisición:** <t:{ts_adquisicion}:F>\n"
+            f"⏳ **Vencimiento:** <t:{ts_expiracion}:F> (<t:{ts_expiracion}:R>)\n\n"
             f"📜 **REGLAS DE LA LITTLE BOX:**\n"
             f"• **1.** Respetar los Términos de Servicio y normas generales de Discord y del servidor.\n"
             f"• **2.** Este espacio es privado y de uso exclusivo para los integrantes autorizados.\n"
@@ -925,7 +925,7 @@ async def crear_box(ctx, tipo: str, nombre_box: str, *ids_usuarios: str):
         f"• **Tipo:** `{tipo}`\n"
         f"• **Dueño/a:** {dueno.name} ({dueno.mention})\n"
         f"• **Total Integrantes:** `{len(miembros_agregados)}`\n"
-        f"• **Expiración:** `<t:{ts_expiracion}:f>` (`en 20 días`)"
+        f"• **Expiración:** <t:{ts_expiracion}:f> (`en 20 días`)"
     )
     embed_log.set_footer(text=f"ID Hilo: {hilo.id}", icon_url=dueno.display_avatar.url)
 
