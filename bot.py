@@ -285,6 +285,7 @@ async def cerrar(ctx, member: discord.Member):
 @bot.command()
 @es_staff_por_id()
 async def clear(ctx, amount: int):
+    """Limpia una cantidad específica de mensajes del canal"""
     await ctx.channel.purge(limit=amount + 1)
     
     msg = await ctx.send(f"✅ ¡Se han limpiado {amount} mensajes!")
@@ -297,6 +298,7 @@ async def clear(ctx, amount: int):
 @bot.command()
 @es_staff_por_id()
 async def kick(ctx, member: discord.Member, *, reason="No especificada"):
+    """Expulsa a un miembro del servidor"""
     await member.kick(reason=reason)
     await ctx.message.add_reaction("✅")
     await ctx.send(f"👢 **{member.display_name}** fue expulsado del servidor. Razón: *{reason}*")
@@ -306,15 +308,15 @@ async def kick(ctx, member: discord.Member, *, reason="No especificada"):
 @bot.command()
 @es_staff_por_id()
 async def ban(ctx, member: discord.Member, *, reason="No especificada"):
+    """Banea permanentemente a un miembro del servidor"""
     await member.ban(reason=reason)
     await ctx.message.add_reaction("✅")
     await ctx.send(f"🔨 **{member.display_name}** fue baneado permanentemente. Razón: *{reason}*")
 
-    import datetime
 
 # --- COMANDO: SILENCIAR USUARIO (MUTE / TIMEOUT) ---
 @bot.command(name="mute", aliases=["silenciar", "timeout"])
-@es_staff_por_id()  # Tu candado de seguridad para Staff
+@es_staff_por_id()  # Candado de seguridad para Staff
 async def mute(ctx, miembro: discord.Member = None, tiempo: str = None, *, razon: str = "No especificada"):
     """Silencia a un usuario usando el Timeout nativo de Discord (Ej: ?mute @User 10m Razón)"""
     
@@ -335,7 +337,7 @@ async def mute(ctx, miembro: discord.Member = None, tiempo: str = None, *, razon
         await ctx.send("⚠️ El formato de tiempo es inválido. Usa números seguidos de `m` (minutos), `h` (horas) o `d` (días).", delete_after=7)
         return
 
-    # 🛠️ CORREGIDO: Usando timedelta directamente (sin datetime.)
+    # Calcular duración usando timedelta limpio
     if unidad == "m":
         duracion = timedelta(minutes=cantidad)
         tiempo_texto = f"{cantidad} Minuto(s)"
@@ -357,25 +359,6 @@ async def mute(ctx, miembro: discord.Member = None, tiempo: str = None, *, razon
     # 🤫 APLICAR TIMEOUT
     try:
         await miembro.timeout(duracion, reason=razon)
-        
-        # Embed o mensaje de confirmación de éxito
-        embed_mute = discord.Embed(
-            title="🔇 Usuario Silenciado",
-            description=(
-                f"• **Usuario:** {miembro.mention}\n"
-                f"• **Duración:** `{tiempo_texto}`\n"
-                f"• **Razón:** `{razon}`\n"
-                f"• **Staff:** {ctx.author.mention}"
-            ),
-            color=0xE74C3C
-        )
-        await ctx.send(embed=embed_mute)
-        
-        try:
-            await ctx.message.delete()
-        except Exception:
-            pass
-
     except discord.Forbidden:
         await ctx.send("❌ No tengo permisos suficientes para silenciar a este miembro (puede que tenga un rol más alto que yo).", delete_after=5)
         return
@@ -384,22 +367,23 @@ async def mute(ctx, miembro: discord.Member = None, tiempo: str = None, *, razon
     try:
         embed_md = discord.Embed(
             title="🛑 • HAS SIDO SILENCIADO • 🛑",
-            description=f"Has recibido una sanción de tiempo en **{ctx.guild.name}**.",
+            description=f"Has recibido una sanción temporal en **{ctx.guild.name}**.",
             color=0xE74C3C,
-            timestamp=datetime.datetime.utcnow()
+            timestamp=discord.utils.utcnow()
         )
         embed_md.add_field(name="⏳ Duración:", value=tiempo_texto, inline=True)
         embed_md.add_field(name="💬 Razón:", value=razon, inline=False)
         embed_md.set_footer(text="Por favor, cumple la sanción y respeta las normas.")
         await miembro.send(embed=embed_md)
     except discord.Forbidden:
-        pass  # Si el usuario tiene los MD cerrados, el bot no crashea
+        pass  # Si el usuario tiene los MD cerrados, el bot continúa sin crashar
 
-    # 📝 2. ENVIAR AVISO PÚBLICO EN EL CANAL
+    # 📝 2. ENVIAR AVISO PÚBLICO EN EL CANAL (Embed unificado y estético)
     embed_canal = discord.Embed(
         title="💥 • USUARIO AISLADO • 💥",
         description=f"El Staff ha aplicado un correctivo temporal en el servidor.",
-        color=0xE67E22
+        color=0xE67E22,
+        timestamp=discord.utils.utcnow()
     )
     embed_canal.add_field(name="👤 Infractor:", value=miembro.mention, inline=True)
     embed_canal.add_field(name="⏳ Tiempo:", value=tiempo_texto, inline=True)
@@ -413,15 +397,21 @@ async def mute(ctx, miembro: discord.Member = None, tiempo: str = None, *, razon
 
     await ctx.send(embed=embed_canal)
 
+    # Intentar borrar el mensaje del comando para mantener limpio el chat
+    try:
+        await ctx.message.delete()
+    except Exception:
+        pass
+
 
 # --- COMANDO: RETIRAR SILENCIO (UNMUTE) ---
 @bot.command(name="unmute", aliases=["desmutear", "untimeout"])
 @es_staff_por_id()
 async def unmute(ctx, miembro: discord.Member = None, *, razon: str = "Retirado por el Staff"):
-    """Remueve el silencio de un usuario antes de tiempo (Ej: Dunmute @User Razón)"""
+    """Remueve el silencio de un usuario antes de tiempo (Ej: ?unmute @User Razón)"""
     
     if not miembro:
-        await ctx.send("⚠️ **Uso correcto:** `Dunmute @usuario [razón]`", delete_after=10)
+        await ctx.send("⚠️ **Uso correcto:** `?unmute @usuario [razón]`", delete_after=10)
         return
 
     # Quitar el timeout pasándole None como duración
@@ -435,7 +425,8 @@ async def unmute(ctx, miembro: discord.Member = None, *, razon: str = "Retirado 
     embed_unmute = discord.Embed(
         title="✨ • SILENCIO RETIRADO • ✨",
         description=f"Se le han devuelto los permisos de habla a {miembro.mention}.",
-        color=0x2ECC71
+        color=0x2ECC71,
+        timestamp=discord.utils.utcnow()
     )
     embed_unmute.add_field(name="👤 Usuario:", value=miembro.mention, inline=True)
     embed_unmute.add_field(name="🛡️ Moderador:", value=ctx.author.mention, inline=True)
@@ -448,7 +439,10 @@ async def unmute(ctx, miembro: discord.Member = None, *, razon: str = "Retirado 
 
     await ctx.send(embed=embed_unmute)
 
-
+    try:
+        await ctx.message.delete()
+    except Exception:
+        pass
 # ==================================================
 # 🚨 GESTOR UNIVERSAL DE ERRORES (ACCESO DENEGADO)
 # ==================================================
