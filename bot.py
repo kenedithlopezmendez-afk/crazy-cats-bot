@@ -316,10 +316,10 @@ async def ban(ctx, member: discord.Member, *, reason="No especificada"):
 @bot.command(name="mute", aliases=["silenciar", "timeout"])
 @es_staff_por_id()  # Tu candado de seguridad para Staff
 async def mute(ctx, miembro: discord.Member = None, tiempo: str = None, *, razon: str = "No especificada"):
-    """Silencia a un usuario usando el Timeout nativo de Discord (Ej: Dmute @User 10m Razón)"""
+    """Silencia a un usuario usando el Timeout nativo de Discord (Ej: ?mute @User 10m Razón)"""
     
     if not miembro or not tiempo:
-        await ctx.send("⚠️ **Uso correcto:** `Dmute @usuario <tiempo><m/h/d> [razón]`\n*Ejemplo:* `Dmute @mishi 10m Comportamiento indebido`", delete_after=10)
+        await ctx.send("⚠️ **Uso correcto:** `?mute @usuario <tiempo><m/h/d> [razón]`\n*Ejemplo:* `?mute @mishi 10m Comportamiento indebido`", delete_after=10)
         return
 
     # Verificar que el Staff no intente automutearse o mutear al bot
@@ -335,27 +335,47 @@ async def mute(ctx, miembro: discord.Member = None, tiempo: str = None, *, razon
         await ctx.send("⚠️ El formato de tiempo es inválido. Usa números seguidos de `m` (minutos), `h` (horas) o `d` (días).", delete_after=7)
         return
 
+    # 🛠️ CORREGIDO: Usando timedelta directamente (sin datetime.)
     if unidad == "m":
-        duracion = datetime.timedelta(minutes=cantidad)
+        duracion = timedelta(minutes=cantidad)
         tiempo_texto = f"{cantidad} Minuto(s)"
     elif unidad == "h":
-        duracion = datetime.timedelta(hours=cantidad)
+        duracion = timedelta(hours=cantidad)
         tiempo_texto = f"{cantidad} Hora(s)"
     elif unidad == "d":
-        duracion = datetime.timedelta(days=cantidad)
+        duracion = timedelta(days=cantidad)
         tiempo_texto = f"{cantidad} Día(s)"
     else:
         await ctx.send("⚠️ Unidad de tiempo desconocida. Usa `m`, `h` o `d`.", delete_after=7)
         return
 
     # Límite máximo de Discord para un Timeout es de 28 días
-    if duracion > datetime.timedelta(days=28):
+    if duracion > timedelta(days=28):
         await ctx.send("❌ Discord no permite aislar a un usuario por más de 28 días.", delete_after=5)
         return
 
     # 🤫 APLICAR TIMEOUT
     try:
         await miembro.timeout(duracion, reason=razon)
+        
+        # Embed o mensaje de confirmación de éxito
+        embed_mute = discord.Embed(
+            title="🔇 Usuario Silenciado",
+            description=(
+                f"• **Usuario:** {miembro.mention}\n"
+                f"• **Duración:** `{tiempo_texto}`\n"
+                f"• **Razón:** `{razon}`\n"
+                f"• **Staff:** {ctx.author.mention}"
+            ),
+            color=0xE74C3C
+        )
+        await ctx.send(embed=embed_mute)
+        
+        try:
+            await ctx.message.delete()
+        except Exception:
+            pass
+
     except discord.Forbidden:
         await ctx.send("❌ No tengo permisos suficientes para silenciar a este miembro (puede que tenga un rol más alto que yo).", delete_after=5)
         return
