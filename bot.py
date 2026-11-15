@@ -457,7 +457,7 @@ async def moderacion_errors(ctx, error):
         await ctx.send(embed=embed_error)
 
         # --- COMANDO: LISTA DE COMANDOS OFICIALES ---
-@bot.command(name="comandos", aliases=["help", "ayuda"])
+@bot.command(name="comandos", aliases=["ayuda"])
 async def comandos(ctx):
     """Muestra la guía completa de comandos oficiales del servidor Crazy Cats"""
     embed = discord.Embed(
@@ -1345,11 +1345,6 @@ async def aventura_carnavalbuff(ctx):
 
     await canal.send(content=f"Ping: {mencion} ⚡ **[BUFF ACTIVO]**", embed=embed)
 
-    import discord
-from discord.ext import commands
-import sqlite3
-import random
-import asyncio
 
 # ==================================================
 # 🗄️ BASE DE DATOS (SQLite para Puntos y Leaderboard)
