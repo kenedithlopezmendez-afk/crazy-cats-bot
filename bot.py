@@ -36,7 +36,7 @@ intents.message_content = True
 intents.members = True
 
 bot = commands.Bot(command_prefix="?", intents=intents)
-TOKEN = os.environ.get("DISCORD_TOKEN")
+TOKEN = os.environ.get("TOKEN")
 
 # 🌟 TU NUEVO ID: Reemplaza este número por el ID real de tu rol de Staff
 ROL_STAFF_JUEGO = 937028989854298172
