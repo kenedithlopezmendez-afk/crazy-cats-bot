@@ -4,44 +4,39 @@ from flask import Flask
 from threading import Thread
 import os
 import logging
-import asyncio 
-import random 
-from datetime import datetime, timedelta  # 🌟 Todo junto y limpio en una sola línea
-import time
+import asyncio
+import random
+from datetime import datetime, timedelta
 import sqlite3
-
-
 
 # Configuración de logs básica para ver movimientos en Render
 logging.basicConfig(level=logging.INFO)
 
-# ==================================================
-# FLASK / KEEP ALIVE (Para evitar el apagado en Render)
-# ==================================================
+# ==========================================
+# 🌐 FLASK / KEEP ALIVE (Para evitar el apagado en Render)
+# ==========================================
 app = Flask(__name__)
 
 @app.route("/")
 def home():
-    return "Crazy Tracker: Escáner de Aventuras Activo 🐾"
+    return "¡El bot de Crazy Cats está activo y funcionando! 🐾"
 
-def run():
-    app.run(host="0.0.0.0", port=10000)
+def run_flask():
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
 
 def keep_alive():
-    t = Thread(target=run)
+    t = Thread(target=run_flask)
     t.start()
 
-# ==================================================
-# CONFIGURACIÓN DEL BOT Y SUS INTENTS
-# ==================================================
-TOKEN = os.environ["TOKEN"]
 
+# Configuración del Bot de Discord
 intents = discord.Intents.default()
-intents.message_content = True 
-intents.messages = True
+intents.message_content = True
+intents.members = True
 
 bot = commands.Bot(command_prefix="?", intents=intents)
-
+TOKEN = os.environ.get("DISCORD_TOKEN")
 
 # 🌟 TU NUEVO ID: Reemplaza este número por el ID real de tu rol de Staff
 ROL_STAFF_JUEGO = 937028989854298172
