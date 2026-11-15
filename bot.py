@@ -462,58 +462,84 @@ async def moderacion_errors(ctx, error):
         await ctx.send(embed=embed_error)
 
         # --- COMANDO: LISTA DE COMANDOS OFICIALES ---
-@bot.command()
+@bot.command(name="comandos", aliases=["help", "ayuda"])
 async def comandos(ctx):
+    """Muestra la guía completa de comandos oficiales del servidor Crazy Cats"""
     embed = discord.Embed(
-        title="🐾 • GUÍA DE COMANDOS DE CRAZY CATS",
+        title="🐾 • GUÍA OFICIAL DE COMANDOS DE CRAZY CATS",
         description=(
-            "¡Hola! Aquí tienes la lista oficial de comandos disponibles. "
-            "Recuerda que mi prefijo actual es **`?`**.\n\n"
-            "---"
+            "¡Hola! Aquí tienes el directorio completo de comandos disponibles en el servidor.\n"
+            "Recuerda que mi prefijo activo es **`?`**.\n\n"
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         ),
         color=0xFFB6C1  # Color rosa estético 🌸
     )
     
-    # Sección de Dinámicas
+    # Sección 1: Dinámicas (Solo Staff)
     embed.add_field(
-        name="🔒 1. CONTROL DE DINÁMICAS Y APERTURA BABEL (Solo Staff)",
+        name="🔒 1. CONTROL DE DINÁMICAS (Solo Staff)",
         value=(
-            "`?abrir @usuario` -> Da el rol de participante para permitirle hablar.\n"
-            "`?cerrar @usuario` -> Quita el rol de participante al terminar."
+            "`?abrir @usuario` • Da el rol de participante para permitirle hablar.\n"
+            "`?cerrar @usuario` • Quita el rol de participante al terminar."
         ),
         inline=False
     )
     
-    # Sección de Moderación
+    # Sección 2: Little Boxes (Privadas de Staff / Usuarios)
     embed.add_field(
-        name="🛡️ 2. MODERACIÓN Y SEGURIDAD (Solo Staff)",
+        name="📦 2. SISTEMA DE LITTLE BOXES (Privadas / 20 días)",
         value=(
-            "`?clear [cantidad]` -> Borra mensajes en masa de forma limpia.\n"
-            "`?kick @usuario [razón]` -> Expulsa a un miembro del servidor.\n"
-            "`?ban @usuario [razón]` -> Banea permanentemente a un usuario.\n" \
-            "`?mute @usuario [tiempo] [razón]`-> Silencia por algun tiempo a un usuario.\n" \
-            "`?unmute @usuario [razón]` -> Quita el silencio del mienbro sancionado.\n" \
-            "`?about` -> Muestra quien es owner del servidor y el creador del bot CrazyCats!.\n"
+            "`?crearbox [Tipo] \"Nombre\" [@IDs...]` • Crea un hilo privado con permisos y duración exacta.\n"
+            "`?extenderbox [ID_Hilo]` • Extiende +20 días la estancia de una box.\n"
+            "`?borrarbox [ID_Hilo]` • Elimina a la fuerza un hilo y su registro."
         ),
         inline=False
     )
-    
-    # Sección de Entretenimiento
-    embed.add_field(
-        name="🎮 3. MINIJUEGOS COMPLETOS",
-        value=(
 
-            "**Torneo Espacial (Solo Staff inicia):**\n"
-            "• `Dplataformas` -> Inicia el juego de supervivencia extrema por rondas."
+    # Sección 3: Minijuegos Automáticos y Leaderboard
+    embed.add_field(
+        name="🎮 3. MINIJUEGOS Y SISTEMA DE PUNTOS",
+        value=(
+            "💬 **Palabras Clave Automáticas:** ¡Escribe **`mine`**, **`fish`** o **`work`** (con o sin texto extra) en cualquier canal para iniciar un minijuego aleatorio de botones embed y ganar puntos!\n"
+            "`?top` • Muestra la tabla de clasificación de jugadores más activos.\n"
+            "`?resetlb` • *(Solo Staff)* Reinicia por completo el leaderboard.\n"
+            "`?deluserlb @usuario` • *(Solo Staff)* Elimina a un usuario del ranking.\n"
+            "`?addpuntos @usuario [cant]` • *(Solo Staff)* Suma o resta puntos manualmente."
+        ),
+        inline=False
+    )
+
+    # Sección 4: Moderación y Seguridad (Solo Staff)
+    embed.add_field(
+        name="🛡️ 4. MODERACIÓN Y SEGURIDAD (Solo Staff)",
+        value=(
+            "`?clear [cantidad]` • Borra mensajes en masa de forma limpia.\n"
+            "`?kick @usuario [razón]` • Expulsa a un miembro del servidor.\n"
+            "`?ban @usuario [razón]` • Banea permanentemente a un usuario.\n"
+            "`?mute @usuario [tiempo] [razón]` • Silencia temporalmente (Ej: `10m`, `2h`, `1d`).\n"
+            "`?unmute @usuario [razón]` • Remueve el silencio de un miembro sancionado.\n"
+            "`?about` • Muestra información del owner y creador del bot."
         ),
         inline=False
     )
     
-    # Detalles visuales
-    embed.set_thumbnail(url="https://cdn.discordapp.com/emojis/112233445566778899.png") # Si tienes un emoji de patita en tu server, puedes poner su link aquí
-    embed.set_footer(text=f"🐾 {ctx.guild.name} • Creado con amor para la comunidad")
+    # Detalles visuales y pie de página corregido
+    if ctx.guild.icon:
+        embed.set_thumbnail(url=ctx.guild.icon.url)
+        
+    embed.set_footer(
+        text=f"🐾 Servidor {ctx.guild.name} • Creado con amor para la comunidad", 
+        icon_url=ctx.author.display_avatar.url
+    )
+    embed.timestamp = discord.utils.utcnow()
     
     await ctx.send(embed=embed)
+    
+    # Intenta borrar el comando del usuario para mantener limpio el chat
+    try:
+        await ctx.message.delete()
+    except Exception:
+        pass
 
 
 # 🤫 CONFIGURACIÓN DEL FILTRO DE MODERACIÓN
@@ -1323,6 +1349,364 @@ async def aventura_carnavalbuff(ctx):
     embed.set_footer(text=f"{ctx.guild.name} • Sistema de Detección con Buff")
 
     await canal.send(content=f"Ping: {mencion} ⚡ **[BUFF ACTIVO]**", embed=embed)
+
+    import discord
+from discord.ext import commands
+import sqlite3
+import random
+import asyncio
+
+# ==================================================
+# 🗄️ BASE DE DATOS (SQLite para Puntos y Leaderboard)
+# ==================================================
+conn = sqlite3.connect("minigames.db")
+cursor = conn.cursor()
+
+cursor.execute('''
+    CREATE TABLE IF NOT EXISTS minigames_scores (
+        user_id INTEGER PRIMARY KEY,
+        points INTEGER DEFAULT 0
+    )
+''')
+conn.commit()
+
+
+# Función auxiliar para sumar puntos
+async def sumar_punto(user_id):
+    cursor.execute("SELECT points FROM minigames_scores WHERE user_id = ?", (user_id,))
+    resultado = cursor.fetchone()
+    if resultado:
+        nuevos_puntos = resultado[0] + 1
+        cursor.execute("UPDATE minigames_scores SET points = ? WHERE user_id = ?", (nuevos_puntos, user_id))
+    else:
+        cursor.execute("INSERT INTO minigames_scores VALUES (?, 1)", (user_id,))
+    conn.commit()
+
+
+# ==================================================
+# 🎣 DETECTOR AUTOMÁTICO DE PALABRAS CLAVE (on_message)
+# ==================================================
+@bot.event
+async def on_message(message):
+    if message.author.bot:
+        return
+
+    content = message.content.lower()
+    keywords = ["mine", "fish", "work"]
+
+    # Detecta si el mensaje contiene mine, fish o work en cualquier parte
+    if any(kw in content for kw in keywords):
+        await lanzar_minijuego_interactivo(message)
+        return  # Evita que interfiera con otros comandos si comparten procesamiento
+
+    await bot.process_commands(message)
+
+
+# ==================================================
+# 🎲 SELECCIONADOR ALEATORIO DE MINIJUEGOS (8 Variantes con Botones)
+# ==================================================
+async def lanzar_minijuego_interactivo(message):
+    juego_id = random.randint(1, 8)
+    
+    if juego_id == 1:
+        await juego_cofre_tesoro(message)
+    elif juego_id == 2:
+        await juego_cristal_minero(message)
+    elif juego_id == 3:
+        await juego_anzuelo_magico(message)
+    elif juego_id == 4:
+        await juego_cables_sistema(message)
+    elif juego_id == 5:
+        await juego_gatito_oculto(message)
+    elif juego_id == 6:
+        await juego_pocion_magica(message)
+    elif juego_id == 7:
+        await juego_estrella_fugaz(message)
+    elif juego_id == 8:
+        await juego_llave_maestra(message)
+
+
+# --- 1. COFRE DEL TESORO ---
+async def juego_cofre_tesoro(message):
+    class View(discord.ui.View):
+        def __init__(self):
+            super().__init__(timeout=20)
+            self.ganador = random.randint(1, 3)
+            for i in range(1, 4):
+                btn = discord.ui.Button(label=f"Cofre #{i}", style=discord.ButtonStyle.secondary, custom_id=f"cofre_{i}")
+                btn.callback = self.callback
+                self.add_item(btn)
+
+        async def callback(self, interaction: discord.ui.Interaction):
+            if interaction.user != message.author:
+                return await interaction.response.send_message("❌ Este juego no es tuyo.", ephemeral=True)
+            num = int(interaction.data["custom_id"].split("_")[1])
+            if num == self.ganador:
+                await sumar_punto(message.author.id)
+                await interaction.response.edit_message(content=None, embed=discord.Embed(title="🎉 ¡Tesoro Encontrado!", description=f"¡Felicidades {message.author.mention}! Hallaste monedas valiosas en el cofre #{num}. **(+1 Punto)**", color=0x2ECC71), view=None)
+            else:
+                await interaction.response.edit_message(content=None, embed=discord.Embed(title="💨 ¡Cofre Vacío!", description=f"El cofre #{num} estaba vacío. ¡Más suerte la próxima!", color=0xE74C3C), view=None)
+            self.stop()
+
+    embed = discord.Embed(title="⛏️ Exploración de Minas", description="¡Te adentraste en las profundidades! Elige uno de los 3 cofres antes de que expiren.", color=0xF1C40F)
+    await message.channel.send(embed=embed, view=View())
+
+
+# --- 2. EL CRISTAL MINERO ---
+async def juego_cristal_minero(message):
+    class View(discord.ui.View):
+        def __init__(self):
+            super().__init__(timeout=20)
+            cristales = [("💎 Diamante", discord.ButtonStyle.success), ("🔴 Rubí", discord.ButtonStyle.danger), ("🔵 Zafiro", discord.ButtonStyle.primary), ("⚫ Carbón", discord.ButtonStyle.secondary)]
+            self.ganador = "💎 Diamante"
+            random.shuffle(cristales)
+            for label, style in cristales:
+                btn = discord.ui.Button(label=label, style=style, custom_id=label)
+                btn.callback = self.callback
+                self.add_item(btn)
+
+        async def callback(self, interaction: discord.ui.Interaction):
+            if interaction.user != message.author:
+                return await interaction.response.send_message("❌ Este juego no es tuyo.", ephemeral=True)
+            if interaction.data["custom_id"] == self.ganador:
+                await sumar_punto(message.author.id)
+                await interaction.response.edit_message(content=None, embed=discord.Embed(title="✨ ¡Excelente Excavación!", description=f"¡Extrajiste un **Diamante puro** {message.author.mention}! **(+1 Punto)**", color=0x2ECC71), view=None)
+            else:
+                await interaction.response.edit_message(content=None, embed=discord.Embed(title="💥 ¡Piedra Común!", description=f"Golpeste material sin valor ({interaction.data['custom_id']}).", color=0xE74C3C), view=None)
+            self.stop()
+
+    embed = discord.Embed(title="💎 Veta de Minerales", description="Golpea la roca con el pico y selecciona el cristal más valioso.", color=0x3498DB)
+    await message.channel.send(embed=embed, view=View())
+
+
+# --- 3. EL ANZUELO MÁGICO ---
+async def juego_anzuelo_magico(message):
+    class View(discord.ui.View):
+        def __init__(self):
+            super().__init__(timeout=20)
+            cebos = [("🐟 Pez Dorado", True), ("👢 Bota Vieja", False), ("🦀 Cangrejo", False)]
+            random.shuffle(cebos)
+            for label, es_valioso in cebos:
+                btn = discord.ui.Button(label=label, style=discord.ButtonStyle.primary, custom_id=str(es_valioso))
+                btn.callback = self.callback
+                self.add_item(btn)
+
+        async def callback(self, interaction: discord.ui.Interaction):
+            if interaction.user != message.author:
+                return await interaction.response.send_message("❌ Este juego no es tuyo.", ephemeral=True)
+            if interaction.data["custom_id"] == "True":
+                await sumar_punto(message.author.id)
+                await interaction.response.edit_message(content=None, embed=discord.Embed(title="🎣 ¡Gran Pesca!", description=f"¡Atrapaste una magnífica pieza {message.author.mention}! **(+1 Punto)**", color=0x2ECC71), view=None)
+            else:
+                await interaction.response.edit_message(content=None, embed=discord.Embed(title="💦 ¡Se escapó!", description="Atrapaste basura u objeto inútil del fondo del lago.", color=0xE74C3C), view=None)
+            self.stop()
+
+    embed = discord.Embed(title="🎣 Sesión de Pesca", description="¡El agua se mueve! Tira de la cuerda eligiendo el señuelo correcto.", color=0x1ABC9C)
+    await message.channel.send(embed=embed, view=View())
+
+
+# --- 4. DESACTIVAR EL MECANISMO ---
+async def juego_cables_sistema(message):
+    class View(discord.ui.View):
+        def __init__(self):
+            super().__init__(timeout=20)
+            colores = [("Cable Azul", False), ("Cable Rojo", True), ("Cable Verde", False)]
+            random.shuffle(colores)
+            for label, correcto in colores:
+                btn = discord.ui.Button(label=label, style=discord.ButtonStyle.secondary, custom_id=str(correcto))
+                btn.callback = self.callback
+                self.add_item(btn)
+
+        async def callback(self, interaction: discord.ui.Interaction):
+            if interaction.user != message.author:
+                return await interaction.response.send_message("❌ Este juego no es tuyo.", ephemeral=True)
+            if interaction.data["custom_id"] == "True":
+                await sumar_punto(message.author.id)
+                await interaction.response.edit_message(content=None, embed=discord.Embed(title="⚡ ¡Mantenimiento Exitoso!", description=f"Reparaste el sistema a tiempo {message.author.mention}. **(+1 Punto)**", color=0x2ECC71), view=None)
+            else:
+                await interaction.response.edit_message(content=None, embed=discord.Embed(title="💥 ¡Cortocircuito!", description="Elegiste el cable incorrecto y falló la maquinaria.", color=0xE74C3C), view=None)
+            self.stop()
+
+    embed = discord.Embed(title="⚙️ Jornada Laboral", description="Hay un fallo técnico en el taller. Corta el cable correcto para completar tu trabajo.", color=0xE67E22)
+    await message.channel.send(embed=embed, view=View())
+
+
+# --- 5. ENCUENTRA AL GATITO ---
+async def juego_gatito_oculto(message):
+    class View(discord.ui.View):
+        def __init__(self):
+            super().__init__(timeout=20)
+            self.ganador = random.randint(1, 4)
+            for i in range(1, 5):
+                btn = discord.ui.Button(label=f"Caja #{i}", style=discord.ButtonStyle.primary, custom_id=f"caja_{i}")
+                btn.callback = self.callback
+                self.add_item(btn)
+
+        async def callback(self, interaction: discord.ui.Interaction):
+            if interaction.user != message.author:
+                return await interaction.response.send_message("❌ Este juego no es tuyo.", ephemeral=True)
+            num = int(interaction.data["custom_id"].split("_")[1])
+            if num == self.ganador:
+                await sumar_punto(message.author.id)
+                await interaction.response.edit_message(content=None, embed=discord.Embed(title="🐱 ¡Apareció un Gatito!", description=f"¡Encontraste al tierno gatito escondido en la caja #{num} {message.author.mention}! **(+1 Punto)**", color=0xF1C40F), view=None)
+            else:
+                await interaction.response.edit_message(content=None, embed=discord.Embed(title="📦 ¡Caja Vacia!", description=f"Revisaste la caja #{num} pero solo habia polvo.", color=0x7F8C8D), view=None)
+            self.stop()
+
+    embed = discord.Embed(title="🐾 Búsqueda Felina", description="¡Hay gatitos traviesos jugando en el almacén Crazy Cats! Encuentra en qué caja se ocultó.", color=0xFFB6C1)
+    await message.channel.send(embed=embed, view=View())
+
+
+# --- 6. POCIÓN DE LA SUERTE ---
+async def juego_pocion_magica(message):
+    class View(discord.ui.View):
+        def __init__(self):
+            super().__init__(timeout=20)
+            self.ganador = random.randint(1, 3)
+            for i in range(1, 4):
+                btn = discord.ui.Button(label=f"Frasco #{i}", style=discord.ButtonStyle.success, custom_id=f"frasco_{i}")
+                btn.callback = self.callback
+                self.add_item(btn)
+
+        async def callback(self, interaction: discord.ui.Interaction):
+            if interaction.user != message.author:
+                return await interaction.response.send_message("❌ Este juego no es tuyo.", ephemeral=True)
+            num = int(interaction.data["custom_id"].split("_")[1])
+            if num == self.ganador:
+                await sumar_punto(message.author.id)
+                await interaction.response.edit_message(content=None, embed=discord.Embed(title="🧪 ¡Poción Correcta!", description=f"¡Creaste el tónico perfecto {message.author.mention}! **(+1 Punto)**", color=0x2ECC71), view=None)
+            else:
+                await interaction.response.edit_message(content=None, embed=discord.Embed(title="💨 ¡Efervescencia Fallida!", description="El frasco burbujeó de más y perdió su efecto.", color=0xE74C3C), view=None)
+            self.stop()
+
+    embed = discord.Embed(title="🔮 Laboratorio de Pociones", description="Mezcla los ingredientes seleccionando el frasco de esencia correcto.", color=0x9B59B6)
+    await message.channel.send(embed=embed, view=View())
+
+
+# --- 7. ESTRELLA FUGAZ ---
+async def juego_estrella_fugaz(message):
+    class View(discord.ui.View):
+        def __init__(self):
+            super().__init__(timeout=20)
+            self.ganador = random.randint(1, 3)
+            for i in range(1, 4):
+                btn = discord.ui.Button(label=f"🌟 Estrella #{i}", style=discord.ButtonStyle.primary, custom_id=f"est_{i}")
+                btn.callback = self.callback
+                self.add_item(btn)
+
+        async def callback(self, interaction: discord.ui.Interaction):
+            if interaction.user != message.author:
+                return await interaction.response.send_message("❌ Este juego no es tuyo.", ephemeral=True)
+            num = int(interaction.data["custom_id"].split("_")[1])
+            if num == self.ganador:
+                await sumar_punto(message.author.id)
+                await interaction.response.edit_message(content=None, embed=discord.Embed(title="⭐ ¡Deseo Concedido!", description=f"¡Atrapaste la estrella fugaz del cielo nocturno {message.author.mention}! **(+1 Punto)**", color=0xF1C40F), view=None)
+            else:
+                await interaction.response.edit_message(content=None, embed=discord.Embed(title="🌌 ¡Se desvaneció!", description="La estrella parpadeó y desapareció antes de tocarla.", color=0x34495E), view=None)
+            self.stop()
+
+    embed = discord.Embed(title="🌠 Lluvia de Estrellas", description="El cielo nocturno brilla. Atrapa la estrella correcta con un clic.", color=0xF39C12)
+    await message.channel.send(embed=embed, view=View())
+
+
+# --- 8. LLAVE MAESTRA ---
+async def juego_llave_maestra(message):
+    class View(discord.ui.View):
+        def __init__(self):
+            super().__init__(timeout=20)
+            self.ganador = random.randint(1, 3)
+            for i in range(1, 4):
+                btn = discord.ui.Button(label=f"Llave #{i}", style=discord.ButtonStyle.secondary, custom_id=f"llave_{i}")
+                btn.callback = self.callback
+                self.add_item(btn)
+
+        async def callback(self, interaction: discord.ui.Interaction):
+            if interaction.user != message.author:
+                return await interaction.response.send_message("❌ Este juego no es tuyo.", ephemeral=True)
+            num = int(interaction.data["custom_id"].split("_")[1])
+            if num == self.ganador:
+                await sumar_punto(message.author.id)
+                await interaction.response.edit_message(content=None, embed=discord.Embed(title="🗝️ ¡Puerta Abierta!", description=f"¡La llave #{num} giró perfecta en la cerradura {message.author.mention}! **(+1 Punto)**", color=0x2ECC71), view=None)
+            else:
+                await interaction.response.edit_message(content=None, embed=discord.Embed(title="🔒 ¡Llave Incorrecta!", description="La llave se atascó en la cerradura y no abrió.", color=0xE74C3C), view=None)
+            self.stop()
+
+    embed = discord.Embed(title="🗝️ Puerta Secreta", description="En contraste un cofre cerrado con candado antiguo. Prueba la llave correcta.", color=0xD4AC0D)
+    await message.channel.send(embed=embed, view=View())
+
+
+# ==================================================
+# 🏆 COMANDOS DE LEADERBOARD Y GESTIÓN PARA EL STAFF
+# ==================================================
+
+# 1. Ver Leaderboard (Público)
+@bot.command(name="top", aliases=["leaderboard", "puntos"])
+async def leaderboard(ctx):
+    """Muestra el top de jugadores más activos en minijuegos"""
+    cursor.execute("SELECT user_id, points FROM minigames_scores ORDER BY points DESC LIMIT 10")
+    top_usuarios = cursor.fetchall()
+
+    if not top_usuarios:
+        return await ctx.send("📊 Aún no hay registros en la tabla de clasificación.")
+
+    descripcion = ""
+    for idx, (uid, pts) in enumerate(top_usuarios, start=1):
+        medalla = "🥇" if idx == 1 else "🥈" if idx == 2 else "🥉" if idx == 3 else f"`#{idx}`"
+        descripcion += f"{medalla} <@{uid}> — **{pts} puntos**\n"
+
+    embed = discord.Embed(
+        title="🏆 Tabla de Clasificación • Mini Juegos",
+        description=descripcion,
+        color=0xF1C40F,
+        timestamp=discord.utils.utcnow()
+    )
+    embed.set_footer(text=f"Solicitado por {ctx.author.name}", icon_url=ctx.author.display_avatar.url)
+    await ctx.send(embed=embed)
+
+
+# 2. Staff: Reiniciar Leaderboard por completo
+@bot.command(name="resetlb", aliases=["reiniciartop"])
+@es_staff_por_id()
+async def resetlb(ctx):
+    """Limpia la tabla de puntos para iniciar una nueva temporada"""
+    cursor.execute("DELETE FROM minigames_scores")
+    conn.commit()
+
+    embed = discord.Embed(
+        title="🔄 Leaderboard Reiniciado",
+        description="Se han borrado todos los puntajes anteriores. ¡Una nueva temporada ha comenzado!",
+        color=0xE74C3C,
+        timestamp=discord.utils.utcnow()
+    )
+    await ctx.send(embed=embed)
+
+
+# 3. Staff: Eliminar a un usuario específico del Leaderboard
+@bot.command(name="deluserlb", aliases=["quitaruserlb"])
+@es_staff_por_id()
+async def deluserlb(ctx, miembro: discord.Member):
+    """Elimina los puntos de un usuario del leaderboard"""
+    cursor.execute("DELETE FROM minigames_scores WHERE user_id = ?", (miembro.id,))
+    conn.commit()
+    await ctx.send(f"✅ Se han borrado los datos y puntos de {miembro.mention} del leaderboard.", delete_after=6)
+
+
+# 4. Staff: Sumar o restar puntos manualmente a alguien
+@bot.command(name="addpuntos", aliases=["darapuntos"])
+@es_staff_por_id()
+async def addpuntos(ctx, miembro: discord.Member, cantidad: int):
+    """Ajusta los puntos de un usuario manualmente (ej: ?addpuntos @User 5)"""
+    cursor.execute("SELECT points FROM minigames_scores WHERE user_id = ?", (miembro.id,))
+    resultado = cursor.fetchone()
+    
+    if resultado:
+        nuevos_puntos = resultado[0] + cantidad
+        cursor.execute("UPDATE minigames_scores SET points = ? WHERE user_id = ?", (nuevos_puntos, miembro.id,))
+    else:
+        cursor.execute("INSERT INTO minigames_scores VALUES (?, ?)", (miembro.id, cantidad))
+    conn.commit()
+
+    await ctx.send(f"✨ Se han actualizado los puntos de {miembro.mention}. Ajuste aplicado: `{cantidad:+d}`", delete_after=6)
 
 # EJECUCION INICIAL NO TOCAR NADA
 if __name__ == "__main__":
