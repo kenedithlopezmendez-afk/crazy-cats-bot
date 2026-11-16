@@ -38,6 +38,8 @@ intents.members = True
 bot = commands.Bot(command_prefix="?", intents=intents)
 TOKEN = os.environ.get("TOKEN")
 
+
+
 # 🌟 TU NUEVO ID: Reemplaza este número por el ID real de tu rol de Staff
 ROL_STAFF_JUEGO = 937028989854298172
 # Reemplaza estos números largos por los IDs REALES de tu servidor
@@ -1364,6 +1366,20 @@ cursor.execute('''
 ''')
 conn.commit()
 
+# 🛠️ AÑADE ESTO AQUÍ: Tabla para el sistema de Little Boxes
+cursor.execute('''
+    CREATE TABLE IF NOT EXISTS boxes (
+        thread_id INTEGER PRIMARY KEY,
+        owner_id INTEGER,
+        nombre_box TEXT,
+        tipo TEXT,
+        creacion TEXT,
+        expiracion TEXT,
+        extendida INTEGER DEFAULT 0
+    )
+''')
+
+conn.commit()
 
 # Función auxiliar para sumar puntos
 async def sumar_punto(user_id):
