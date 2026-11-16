@@ -841,7 +841,7 @@ async def crear_box(ctx, tipo: str, nombre_box: str, *ids_usuarios: str):
         return await ctx.send("❌ No tienes permisos para usar este comando.", delete_after=5)
 
     if not ids_usuarios:
-        return await ctx.send("❌ Debes incluir al menos la ID del dueño.\nEjemplo: `!crearbox Mini \"Mi Box\" 1234567890`", delete_after=8)
+        return await ctx.send("❌ Debes incluir al menos la ID duela/dueño.\nEjemplo: `!crearbox Mini \"Mi Box\" 1234567890`", delete_after=8)
 
     # Limpiar y filtrar IDs de usuarios de forma segura
     ids_limpias = []
@@ -889,7 +889,7 @@ async def crear_box(ctx, tipo: str, nombre_box: str, *ids_usuarios: str):
     ts_adquisicion = int(ahora.timestamp())
     ts_expiracion = int(expiracion.timestamp())
 
-    # Crear el Hilo Privado en Discord (Soporta fuentes y emojis con total libertad en el nombre)
+    # Crear el Hilo Privado en Discord
     hilo = await canal_principal.create_thread(
         name=f"📦・{nombre_box}",
         type=discord.ChannelType.private_thread,
@@ -903,7 +903,7 @@ async def crear_box(ctx, tipo: str, nombre_box: str, *ids_usuarios: str):
         except Exception as e:
             print(f"Error al añadir a {member.name} al hilo: {e}")
 
-    # Asegurar que el Staff (S-Camita por ID) también tenga acceso al hilo creado
+    # Asegurar que el Staff también tenga acceso al hilo creado
     rol_staff = ctx.guild.get_role(ID_ROL_STAFF)
     if rol_staff:
         for member in rol_staff.members:
@@ -944,7 +944,12 @@ async def crear_box(ctx, tipo: str, nombre_box: str, *ids_usuarios: str):
         color=0xFFB6C1
     )
     embed_bienvenida.set_thumbnail(url=dueno.display_avatar.url)
-    embed_bienvenida.set_footer(text=f"ID de Little Box: {hilo.id} • Servidor {ctx.guild.name}", icon_url=ctx.guild.icon.url if ctx.guild.icon else None)
+    
+    # 🔧 CORREGIDO: Footer en una sola línea continua y sin guion inicial
+    embed_bienvenida.set_footer(
+        text=f"ID de Little Box: {hilo.id} • Servidor {ctx.guild.name}", 
+        icon_url=ctx.guild.icon.url if ctx.guild.icon else None
+    )
 
     menciones_str = " ".join([m.mention for m in miembros_agregados])
     await hilo.send(content=f"👋 ¡Hola {menciones_str}!", embed=embed_bienvenida)
@@ -970,7 +975,6 @@ async def crear_box(ctx, tipo: str, nombre_box: str, *ids_usuarios: str):
         await ctx.message.delete()
     except Exception:
         pass
-
 
 # ==================================================
 # 🔄 2. COMANDO: EXTENDER BOX (!extenderbox)
