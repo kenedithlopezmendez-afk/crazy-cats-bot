@@ -1050,6 +1050,45 @@ async def extender_box(ctx, thread_id: int):
     except Exception:
         pass
 
+    # ==================================================
+# 📦 COMANDO: AÑADIR USUARIO A LITTLE BOX (?addbox - SOLO STAFF)
+# ==================================================
+@bot.command(name="addbox", aliases=["añadirbox"])
+@es_staff_por_id()
+async def addbox(ctx, miembro: discord.Member):
+    """Permite exclusivamente al Staff añadir a un nuevo miembro a la Little Box actual"""
+    
+    # 1. Verificar si estamos dentro de un hilo
+    if not isinstance(ctx.channel, discord.Thread):
+        return await ctx.send("❌ Este comando solo se puede usar **dentro del hilo** de una Little Box.", delete_after=8)
+
+    # 2. Consultar si este hilo está registrado en la base de datos
+    cursor.execute("SELECT owner_id FROM boxes WHERE thread_id = ?", (ctx.channel.id,))
+    resultado = cursor.fetchone()
+
+    if not resultado:
+        return await ctx.send("❌ Este hilo no está registrado como una Little Box válida.", delete_after=8)
+
+    # 3. Intentar añadir al miembro al hilo privado
+    try:
+        await ctx.channel.add_user(miembro)
+        
+        embed = discord.Embed(
+            title="➕ • Nuevo Integrante Añadido",
+            description=f"¡{miembro.mention} ha sido añadido a la **Little Box** por el Staff {ctx.author.mention}!",
+            color=0x2ECC71,
+            timestamp=discord.utils.utcnow()
+        )
+        await ctx.channel.send(content=f"👋 ¡Bienvenido/a {miembro.mention}!", embed=embed)
+        
+        try:
+            await ctx.message.delete()
+        except Exception:
+            pass
+            
+    except Exception as e:
+        await ctx.send(f"❌ Ocurrió un error al intentar añadir al usuario al hilo: `{e}`", delete_after=8)
+
 
 # ==================================================
 # 🗑️ 3. COMANDO: BORRAR BOX (!borrarbox)
@@ -1366,6 +1405,9 @@ cursor.execute('''
 ''')
 conn.commit()
 
+# Variable de control global para los minijuegos
+MINIGAMES_ENABLED = True
+
 # 🛠️ AÑADE ESTO AQUÍ: Tabla para el sistema de Little Boxes
 cursor.execute('''
     CREATE TABLE IF NOT EXISTS boxes (
@@ -1404,13 +1446,46 @@ async def on_message(message):
     content = message.content.lower()
     keywords = ["mine", "fish", "work"]
 
-    # Detecta si el mensaje contiene mine, fish o work en cualquier parte
-    if any(kw in content for kw in keywords):
+    # 🎮 Solo lanza minijuegos si el sistema está activo globalmente
+    if MINIGAMES_ENABLED and any(kw in content for kw in keywords):
         await lanzar_minijuego_interactivo(message)
-        return  # Evita que interfiera con otros comandos si comparten procesamiento
+        return
 
     await bot.process_commands(message)
 
+# ==================================================
+# 🎮 COMANDO: ACTIVAR / DESACTIVAR MINIJUEGOS (?toggleminigames)
+# ==================================================
+@bot.command(name="toggleminigames", aliases=["minijuegos", "togglejuegos"])
+@es_staff_por_id()
+async def toggleminigames(ctx, estado: str = None):
+    """Enciende o apaga el sistema global de minijuegos (Ej: ?minijuegos on / off)"""
+    global MINIGAMES_ENABLED
+
+    if estado is None:
+        estado_actualchek = "🟢 **Activados**" if MINIGAMES_ENABLED else "🔴 **Desactivados**"
+        return await ctx.send(f"ℹ️ El sistema de minijuegos actualmente está: {estado_actualchek}\nUsa `?minijuegos on` o `?minijuegos off` para cambiarlo.", delete_after=10)
+
+    estado = estado.lower()
+    if estado in ["on", "activar", "encender", "true"]:
+        MINIGAMES_ENABLED = True
+        embed = discord.Embed(
+            title="🟢 Minijuegos Activados",
+            description="¡El sistema de minijuegos por palabras clave (`mine`, `fish`, `work`) ha sido **habilitado** en el servidor!",
+            color=0x2ECC71
+        )
+        await ctx.send(embed=embed)
+        
+    elif estado in ["off", "desactivar", "apagar", "false"]:
+        MINIGAMES_ENABLED = False
+        embed = discord.Embed(
+            title="🔴 Minijuegos Desactivados",
+            description="El sistema de minijuegos ha sido **pausado temporalmente** por el Staff.",
+            color=0xE74C3C
+        )
+        await ctx.send(embed=embed)
+    else:
+        await ctx.send("❌ Opción no válida. Usa `?minijuegos on` para encenderlos o `?minijuegos off` para apagarlos.", delete_after=8)
 
 # ==================================================
 # 🎲 SELECCIONADOR ALEATORIO DE MINIJUEGOS (8 Variantes con Botones)
