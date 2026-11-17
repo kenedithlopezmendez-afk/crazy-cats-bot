@@ -1134,8 +1134,9 @@ async def borrar_box(ctx, thread_id: int):
         pass
 
 
+
 # ==================================================
-# ⏰ 4. TAREA AUTOMÁTICA EN SEGUNDO PLANO
+# ⏰ 4. TAREA AUTOMÁTICA EN SEGUNDO PLANO (Aviso 12h antes)
 # ==================================================
 
 @tasks.loop(minutes=30)
@@ -1152,8 +1153,8 @@ async def sistema_gestion_boxes():
         tiempo_restante = fecha_expiracion - ahora
         ts_exp = int(fecha_expiracion.timestamp())
 
-        # 🔔 Recordatorio 24 horas antes
-        if timedelta(hours=0) < tiempo_restante <= timedelta(hours=24) and aviso_enviado == 0:
+        # 🔔 Recordatorio 12 horas antes (Cambiado de 24h a 12h)
+        if timedelta(hours=0) < tiempo_restante <= timedelta(hours=12) and aviso_enviado == 0:
             try:
                 hilo = await bot.fetch_channel(thread_id)
                 if hilo:
@@ -1164,13 +1165,13 @@ async def sistema_gestion_boxes():
                         title="⚠️ ¡SU LITTLE BOX ESTÁ A PUNTO DE VENCER!",
                         description=(
                             f"¡Atención {mencion_dueno} y acompañantes!\n\n"
-                            f"⏰ Su Little Box **{nombre}** expirará en menos de **24 horas**.\n"
+                            f"⏰ Su Little Box **{nombre}** expirará en menos de **12 horas**.\n"
                             f"🗓️ **Cierre programado:** `<t:{ts_exp}:F>` (`<t:{ts_exp}:R>`)\n\n"
                             f"💡 *Si desean conservar su espacio, contacten al Staff para solicitar una renovación.*"
                         ),
                         color=0xF39C12
                     )
-                    embed_recordatorio.set_footer(text="Aviso automático de expiración")
+                    embed_recordatorio.set_footer(text="Aviso automático de expiración (12h)")
                     await hilo.send(content=f"🔔 {mencion_dueno}", embed=embed_recordatorio)
 
                     cursor.execute("UPDATE boxes SET aviso_enviado = 1 WHERE thread_id = ?", (thread_id,))
@@ -1792,6 +1793,15 @@ async def addpuntos(ctx, miembro: discord.Member, cantidad: int):
     conn.commit()
 
     await ctx.send(f"✨ Se han actualizado los puntos de {miembro.mention}. Ajuste aplicado: `{cantidad:+d}`", delete_after=6)
+
+@bot.event
+async def on_ready():
+    print(f'¡Bot conectado como {bot.user} exitosamente!')
+    
+    # Iniciar la tarea automática de las Little Boxes
+    if not sistema_gestion_boxes.is_running():
+        sistema_gestion_boxes.start()
+        print("⏰ Tarea automática de Little Boxes iniciada.")
 
 # EJECUCION INICIAL NO TOCAR NADA
 if __name__ == "__main__":
