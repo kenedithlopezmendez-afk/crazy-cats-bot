@@ -1598,8 +1598,8 @@ async def juego_cables_sistema(message):
             super().__init__(timeout=20)
             colores = [("Cable Azul", False), ("Cable Rojo", True), ("Cable Verde", False)]
             random.shuffle(colores)
-            for label, correcto in colores:
-                btn = discord.ui.Button(label=label, style=discord.ButtonStyle.secondary, custom_id=str(correcto))
+            for idx,label, correcto in colores:
+                btn = discord.ui.Button(label=label, style=discord.ButtonStyle.secondary, custom_id=f"cable_btn_{idx}"(correcto))
                 btn.callback = self.callback
                 self.add_item(btn)
 
