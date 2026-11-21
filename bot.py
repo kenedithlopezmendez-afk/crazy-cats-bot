@@ -1268,7 +1268,7 @@ async def extender_little_box(
                     "🌸 **Inactividad prolongada**\n"
                     "La Little Box cerrará automáticamente si transcurren **7 días de inactividad**.\n\n"
                     "🌸 **Little Box adquirida hasta**\n"
-                    f"<t:{ts_nueva_exp}:F> (`<t:{ts_nueva_exp}:R>`)"
+                    f"<t:{ts_nueva_exp}:F> (<t:{ts_nueva_exp}:R>)"
                 )
                 embed_actual.description = nueva_desc
                 await msg_fijado.edit(embed=embed_actual)
@@ -1290,7 +1290,7 @@ async def extender_little_box(
                 f"• **Tipo:** {tipo}\n"
                 f"• **Días añadidos:** +{dias_extra} días\n"
                 f"{staff_linea}"
-                f"• **Nueva expiración:** <t:{ts_nueva_exp}:f> (`<t:{ts_nueva_exp}:R>`)"
+                f"• **Nueva expiración:** <t:{ts_nueva_exp}:f> (<t:{ts_nueva_exp}:R>)"
             ),
             color=0xFFD3B6,
         )
@@ -1323,7 +1323,7 @@ async def extenderbox(ctx: commands.Context, dias: int = 20):
 
     ts_exp = int(nueva_exp.timestamp())
     await ctx.send(
-        f"🌸 Little Box extendida **+{dias} días**. Nueva fecha de expiración: <t:{ts_exp}:F> (`<t:{ts_exp}:R>`)."
+        f"🌸 Little Box extendida **+{dias} días**. Nueva fecha de expiración: <t:{ts_exp}:F> (<t:{ts_exp}:R>)."
     )
 # SEGUNDO PLANO
 @tasks.loop(minutes=30)
