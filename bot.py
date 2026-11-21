@@ -1174,6 +1174,15 @@ class PanelLittleBoxView(discord.ui.View):
             )
         )
 
+ROL_MODERADOR_ID = 927356784434376735  # Cámbialo por el ID de tu rol de moderador
+
+
+def puede_gestionar_boxes():
+    return commands.check_any(
+        commands.has_permissions(administrator=True),
+        commands.has_any_role(ROL_MODERADOR_ID),
+    )
+
 @bot.command(name="panelbox")
 @commands.has_permissions(administrator=True)
 async def panelbox(ctx: commands.Context):
@@ -1191,6 +1200,12 @@ async def panelbox(ctx: commands.Context):
     )
 
 CANAL_LOGS_LITTLE_BOXES_ID = 1477110955669323899
+
+def puede_gestionar_boxes():
+    return commands.check_any(
+        commands.has_permissions(administrator=True),
+        commands.has_any_role(ROL_MODERADOR_ID),
+    )
 
 # FUNCION FUNCION
 async def extender_little_box(
