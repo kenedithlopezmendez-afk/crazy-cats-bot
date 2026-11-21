@@ -7,6 +7,7 @@ import logging
 import asyncio
 import random
 from datetime import datetime, timedelta
+import database
 import sqlite3
 
 # Configuración de logs básica para ver movimientos en Render
@@ -796,421 +797,7 @@ async def activar_luna_sangre(ctx):
     await canal_avisos.send(content=f"🚨 {mencion_rol}", embed=embed_activo)
     print(f"✅ Éxito: Comando !luna ejecutado por {ctx.author.name}")
 
-# ==================================================
-# 📌 CONFIGURACIÓN DE IDS
-# ==================================================
-ID_CANAL_LITTLE_BOXES = 1419188163376840784  # Canal principal (#little-boxes)
-ID_CANAL_LOGS = 1477110955669323899          # Canal de registros / logs
-ID_ROL_STAFF = 955211100700426240            # ⚠️ Reemplaza con la ID real del rol "S-Camita"
 
-# ==================================================
-# BASE DE DATOS (SQLite)
-# ==================================================
-conn = sqlite3.connect("little_boxes.db")
-cursor = conn.cursor()
-
-cursor.execute('''
-    CREATE TABLE IF NOT EXISTS boxes (
-        thread_id INTEGER PRIMARY KEY,
-        owner_id INTEGER,
-        nombre TEXT,
-        tipo TEXT,
-        fecha_adquisicion TEXT,
-        fecha_expiracion TEXT,
-        aviso_enviado INTEGER DEFAULT 0
-    )
-''')
-conn.commit()
-
-
-# Función auxiliar para verificar si es Staff por ID
-def es_staff(ctx):
-    rol_staff = ctx.guild.get_role(ID_ROL_STAFF)
-    return (rol_staff in ctx.author.roles) or ctx.author.guild_permissions.administrator
-
-
-# ==================================================
-# 📦 1. COMANDO: CREAR BOX (!crearbox)
-# ==================================================
-
-@bot.command(name="crearbox")
-async def crear_box(ctx, tipo: str, nombre_box: str, *ids_usuarios: str):
-    """
-    Sintaxis: !crearbox Tipo "Nombre Box" ID_Dueño ID_Acompañante1 ...
-    Ejemplo:  !crearbox Duo "Camas₊˚♡" 123456789012345678 987654321098765432
-    """
-    if not es_staff(ctx):
-        return await ctx.send("❌ No tienes permisos para usar este comando.", delete_after=5)
-
-    if not ids_usuarios:
-        return await ctx.send("❌ Debes incluir al menos la ID duela/dueño.\nEjemplo: `!crearbox Mini \"Mi Box\" 1234567890`", delete_after=8)
-
-    # Limpiar y filtrar IDs de usuarios de forma segura
-    ids_limpias = []
-    for raw_id in ids_usuarios:
-        clean_id = raw_id.replace("<@", "").replace(">", "").replace("!", "")
-        if clean_id.isdigit():
-            ids_limpias.append(int(clean_id))
-
-    if not ids_limpias:
-        return await ctx.send("❌ Ninguna de las IDs ingresadas es válida.", delete_after=8)
-
-    if len(ids_limpias) > 10:
-        return await ctx.send("⚠️ El límite máximo de participantes es de 10 personas.", delete_after=8)
-
-    canal_principal = ctx.guild.get_channel(ID_CANAL_LITTLE_BOXES)
-    canal_logs = ctx.guild.get_channel(ID_CANAL_LOGS)
-
-    if not canal_principal or not canal_logs:
-        return await ctx.send("❌ Error crítico: Verifica los IDs de los canales configurados.", delete_after=8)
-
-    # Búsqueda blindada por API (fetch_member)
-    miembros_agregados = []
-    dueno = None
-
-    for idx, user_id in enumerate(ids_limpias):
-        member = ctx.guild.get_member(user_id)
-        if not member:
-            try:
-                member = await ctx.guild.fetch_member(user_id)
-            except Exception:
-                member = None
-
-        if member:
-            miembros_agregados.append(member)
-            if idx == 0:
-                dueno = member
-
-    if not dueno:
-        return await ctx.send("❌ No se pudo encontrar al usuario dueño con la primera ID provista.", delete_after=8)
-
-    # Fechas y Timestamps (20 días exactos)
-    ahora = datetime.now()
-    expiracion = ahora + timedelta(days=20)
-
-    ts_adquisicion = int(ahora.timestamp())
-    ts_expiracion = int(expiracion.timestamp())
-
-    # Crear el Hilo Privado en Discord
-    hilo = await canal_principal.create_thread(
-        name=f"📦・{nombre_box}",
-        type=discord.ChannelType.private_thread,
-        invitable=False
-    )
-
-    # 🔐 Asegurar adición y permisos de escritura al Dueño y Acompañantes
-    for member in miembros_agregados:
-        try:
-            await hilo.add_user(member)
-        except Exception as e:
-            print(f"Error al añadir a {member.name} al hilo: {e}")
-
-    # Asegurar que el Staff también tenga acceso al hilo creado
-    rol_staff = ctx.guild.get_role(ID_ROL_STAFF)
-    if rol_staff:
-        for member in rol_staff.members:
-            try:
-                await hilo.add_user(member)
-            except Exception:
-                pass
-
-    # Guardar en Base de Datos SQLite
-    cursor.execute(
-        "INSERT INTO boxes VALUES (?, ?, ?, ?, ?, ?, 0)",
-        (hilo.id, dueno.id, nombre_box, tipo, ahora.isoformat(), expiracion.isoformat())
-    )
-    conn.commit()
-
-    # Estructurar texto de integrantes
-    if len(miembros_agregados) == 1:
-        texto_integrantes = f"👤 **Dueño/a:** {dueno.mention}"
-    else:
-        acompanantes = [m.mention for m in miembros_agregados[1:]]
-        texto_integrantes = f"👑 **Dueño/a:** {dueno.mention}\n👥 **Acompañantes ({len(acompanantes)}):**\n" + "\n".join([f"• {acc}" for acc in acompanantes])
-
-    # ✨ EMBED DE BIENVENIDA ESTÉTICO
-    embed_bienvenida = discord.Embed(
-        title=f"📦 ✨ ¡Bienvenidos a {nombre_box}! ✨ 📦",
-        description=(
-            f"¡Felicidades! Su **Little Box** ha sido creada y configurada con éxito.\n\n"
-            f"─────────────── Por favor lean las pautas ───────────────\n"
-            f"{texto_integrantes}\n\n"
-            f"🗓️ **Adquisición:** <t:{ts_adquisicion}:F>\n"
-            f"⏳ **Vencimiento:** <t:{ts_expiracion}:F> (<t:{ts_expiracion}:R>)\n\n"
-            f"📜 **REGLAS DE LA LITTLE BOX:**\n"
-            f"• **1.** Respetar los Términos de Servicio y normas generales de Discord y del servidor.\n"
-            f"• **2.** Este espacio es privado y de uso exclusivo para los integrantes autorizados.\n"
-            f"• **3.** Para renovar su estancia por +20 días, contacten al Staff antes del vencimiento.\n"
-            f"• **4.** Al cumplirse el plazo sin renovación, el hilo se eliminará de forma automática."
-        ),
-        color=0xFFB6C1
-    )
-    embed_bienvenida.set_thumbnail(url=dueno.display_avatar.url)
-    
-    # 🔧 CORREGIDO: Footer en una sola línea continua y sin guion inicial
-    embed_bienvenida.set_footer(
-        text=f"ID de Little Box: {hilo.id} • Servidor {ctx.guild.name}", 
-        icon_url=ctx.guild.icon.url if ctx.guild.icon else None
-    )
-
-    menciones_str = " ".join([m.mention for m in miembros_agregados])
-    await hilo.send(content=f"👋 ¡Hola {menciones_str}!", embed=embed_bienvenida)
-
-    # ✨ EMBED DE LOG DE CREACIÓN
-    embed_log = discord.Embed(
-        title="📥 Nueva Little Box Registrada",
-        color=0x2ECC71,
-        timestamp=datetime.now()
-    )
-    embed_log.description = (
-        f"• **Nombre:** `{nombre_box}`\n"
-        f"• **Tipo:** `{tipo}`\n"
-        f"• **Dueño/a:** {dueno.name} ({dueno.mention})\n"
-        f"• **Total Integrantes:** `{len(miembros_agregados)}`\n"
-        f"• **Expiración:** <t:{ts_expiracion}:f> (`en 20 días`)"
-    )
-    embed_log.set_footer(text=f"ID Hilo: {hilo.id}", icon_url=dueno.display_avatar.url)
-
-    await canal_logs.send(embed=embed_log)
-
-    try:
-        await ctx.message.delete()
-    except Exception:
-        pass
-
-# ==================================================
-# 🔄 2. COMANDO: EXTENDER BOX (!extenderbox)
-# ==================================================
-
-@bot.command(name="extenderbox")
-async def extender_box(ctx, thread_id: int):
-    """Sintaxis: !extenderbox ID_DEL_HILO"""
-    if not es_staff(ctx):
-        return await ctx.send("❌ No tienes permisos para usar este comando.", delete_after=5)
-
-    cursor.execute("SELECT * FROM boxes WHERE thread_id = ?", (thread_id,))
-    box = cursor.fetchone()
-
-    if not box:
-        return await ctx.send("❌ No se encontró ninguna Little Box registrada con esa ID.", delete_after=6)
-
-    _, owner_id, nombre, tipo, str_adq, str_exp_iso, _ = box
-
-    fecha_exp_actual = datetime.fromisoformat(str_exp_iso)
-    nueva_expiracion = fecha_exp_actual + timedelta(days=20)
-    ahora = datetime.now()
-
-    cursor.execute(
-        "UPDATE boxes SET fecha_expiracion = ?, aviso_enviado = 0 WHERE thread_id = ?",
-        (nueva_expiracion.isoformat(), thread_id)
-    )
-    conn.commit()
-
-    dueno = ctx.guild.get_member(owner_id)
-    mencion_dueno = dueno.mention if dueno else f"<@{owner_id}>"
-    nombre_dueno = dueno.name if dueno else "Usuario Desconocido"
-    avatar_dueno = dueno.display_avatar.url if dueno else bot.user.display_avatar.url
-
-    ts_nueva_exp = int(nueva_expiracion.timestamp())
-    canal_logs = ctx.guild.get_channel(ID_CANAL_LOGS)
-
-    embed_log = discord.Embed(
-        title="🔄 Little Box Extendida (+20 días)",
-        color=0xE91E63,
-        timestamp=datetime.now()
-    )
-    embed_log.description = (
-        f"• **Nombre:** `{nombre}`\n"
-        f"• **Dueño/a:** {nombre_dueno} ({mencion_dueno})\n"
-        f"• **Tipo:** `{tipo}`\n"
-        f"• **Nueva Expiración:** `<t:{ts_nueva_exp}:f>` (`<t:{ts_nueva_exp}:R>`)"
-    )
-    embed_log.set_footer(text=f"ID Hilo: {thread_id}", icon_url=avatar_dueno)
-
-    if canal_logs:
-        await canal_logs.send(embed=embed_log)
-
-    try:
-        hilo = await bot.fetch_channel(thread_id)
-        if isinstance(hilo, discord.Thread):
-            embed_aviso_hilo = discord.Embed(
-                title="✨ ¡ESTANCIA RENOVADA! ✨",
-                description=(
-                    f"¡Buenas noticias! El Staff ha extendido el tiempo de esta **Little Box**.\n\n"
-                    f"⏳ **Nuevo Vencimiento:** `<t:{ts_nueva_exp}:F>` (`<t:{ts_nueva_exp}:R>`)"
-                ),
-                color=0x2ECC71
-            )
-            await hilo.send(embed=embed_aviso_hilo)
-    except Exception:
-        pass
-
-    try:
-        await ctx.message.delete()
-    except Exception:
-        pass
-
-    # ==================================================
-# 📦 COMANDO: AÑADIR USUARIO A LITTLE BOX (?addbox - SOLO STAFF)
-# ==================================================
-@bot.command(name="addbox", aliases=["añadirbox"])
-@es_staff_por_id()
-async def addbox(ctx, miembro: discord.Member):
-    """Permite exclusivamente al Staff añadir a un nuevo miembro a la Little Box actual"""
-    
-    # 1. Verificar si estamos dentro de un hilo
-    if not isinstance(ctx.channel, discord.Thread):
-        return await ctx.send("❌ Este comando solo se puede usar **dentro del hilo** de una Little Box.", delete_after=8)
-
-    # 2. Consultar si este hilo está registrado en la base de datos
-    cursor.execute("SELECT owner_id FROM boxes WHERE thread_id = ?", (ctx.channel.id,))
-    resultado = cursor.fetchone()
-
-    if not resultado:
-        return await ctx.send("❌ Este hilo no está registrado como una Little Box válida.", delete_after=8)
-
-    # 3. Intentar añadir al miembro al hilo privado
-    try:
-        await ctx.channel.add_user(miembro)
-        
-        embed = discord.Embed(
-            title="➕ • Nuevo Integrante Añadido",
-            description=f"¡{miembro.mention} ha sido añadido a la **Little Box** por el Staff {ctx.author.mention}!",
-            color=0x2ECC71,
-            timestamp=discord.utils.utcnow()
-        )
-        await ctx.channel.send(content=f"👋 ¡Bienvenido/a {miembro.mention}!", embed=embed)
-        
-        try:
-            await ctx.message.delete()
-        except Exception:
-            pass
-            
-    except Exception as e:
-        await ctx.send(f"❌ Ocurrió un error al intentar añadir al usuario al hilo: `{e}`", delete_after=8)
-
-
-# ==================================================
-# 🗑️ 3. COMANDO: BORRAR BOX (!borrarbox)
-# ==================================================
-
-@bot.command(name="borrarbox")
-async def borrar_box(ctx, thread_id: int):
-    """Sintaxis: !borrarbox ID_DEL_HILO"""
-    if not es_staff(ctx):
-        return await ctx.send("❌ No tienes permisos para usar este comando.", delete_after=5)
-
-    try:
-        hilo = await bot.fetch_channel(thread_id)
-        nombre_hilo = hilo.name
-        await hilo.delete()
-    except Exception:
-        nombre_hilo = "Hilo ya inexistente o inaccesible"
-
-    cursor.execute("SELECT owner_id, tipo FROM boxes WHERE thread_id = ?", (thread_id,))
-    cursor.fetchone()
-    
-    cursor.execute("DELETE FROM boxes WHERE thread_id = ?", (thread_id,))
-    conn.commit()
-
-    canal_logs = ctx.guild.get_channel(ID_CANAL_LOGS)
-    if canal_logs:
-        embed_log = discord.Embed(
-            title="🗑️ Little Box Eliminada a la Fuerza",
-            color=0xE74C3C,
-            timestamp=datetime.now()
-        )
-        embed_log.description = (
-            f"• **Hilo:** `{nombre_hilo}`\n"
-            f"• **ID del Hilo:** `{thread_id}`\n"
-            f"• **Acción ejecutada por:** {ctx.author.mention}"
-        )
-        await canal_logs.send(embed=embed_log)
-
-    await ctx.send(f"✅ La Little Box con ID `{thread_id}` ha sido eliminada correctamente.", delete_after=6)
-    try:
-        await ctx.message.delete()
-    except Exception:
-        pass
-
-
-
-# ==================================================
-# ⏰ 4. TAREA AUTOMÁTICA EN SEGUNDO PLANO (Aviso 12h antes)
-# ==================================================
-
-@tasks.loop(minutes=30)
-async def sistema_gestion_boxes():
-    ahora = datetime.now()
-    cursor.execute("SELECT * FROM boxes")
-    todas_las_boxes = cursor.fetchall()
-
-    canal_logs = bot.get_channel(ID_CANAL_LOGS)
-
-    for box in todas_las_boxes:
-        thread_id, owner_id, nombre, tipo, str_adq, str_exp_iso, aviso_enviado = box
-        fecha_expiracion = datetime.fromisoformat(str_exp_iso)
-        tiempo_restante = fecha_expiracion - ahora
-        ts_exp = int(fecha_expiracion.timestamp())
-
-        # 🔔 Recordatorio 12 horas antes (Cambiado de 24h a 12h)
-        if timedelta(hours=0) < tiempo_restante <= timedelta(hours=12) and aviso_enviado == 0:
-            try:
-                hilo = await bot.fetch_channel(thread_id)
-                if hilo:
-                    dueno = bot.get_user(owner_id)
-                    mencion_dueno = dueno.mention if dueno else "Integrantes"
-
-                    embed_recordatorio = discord.Embed(
-                        title="⚠️ ¡SU LITTLE BOX ESTÁ A PUNTO DE VENCER!",
-                        description=(
-                            f"¡Atención {mencion_dueno} y acompañantes!\n\n"
-                            f"⏰ Su Little Box **{nombre}** expirará en menos de **12 horas**.\n"
-                            f"🗓️ **Cierre programado:** `<t:{ts_exp}:F>` (`<t:{ts_exp}:R>`)\n\n"
-                            f"💡 *Si desean conservar su espacio, contacten al Staff para solicitar una renovación.*"
-                        ),
-                        color=0xF39C12
-                    )
-                    embed_recordatorio.set_footer(text="Aviso automático de expiración (12h)")
-                    await hilo.send(content=f"🔔 {mencion_dueno}", embed=embed_recordatorio)
-
-                    cursor.execute("UPDATE boxes SET aviso_enviado = 1 WHERE thread_id = ?", (thread_id,))
-                    conn.commit()
-            except Exception as e:
-                print(f"Error enviando recordatorio: {e}")
-
-        # ❌ Eliminación automática al cumplirse los 20 días
-        elif ahora >= fecha_expiracion:
-            try:
-                hilo = await bot.fetch_channel(thread_id)
-                if hilo:
-                    await hilo.delete()
-            except Exception:
-                pass
-
-            if canal_logs:
-                dueno = bot.get_user(owner_id)
-                m_dueno = dueno.mention if dueno else f"<@{owner_id}>"
-
-                embed_cerrado = discord.Embed(
-                    title="🔒 Little Box Cerrada (Expirada)",
-                    color=0x7F8C8D,
-                    timestamp=datetime.now()
-                )
-                embed_cerrado.description = (
-                    f"• **Nombre:** `{nombre}`\n"
-                    f"• **Dueño/a:** {m_dueno}\n"
-                    f"• **Razón:** Plazo de 20 días finalizado sin renovación."
-                )
-                embed_cerrado.set_footer(text=f"ID de Little Box: {thread_id}")
-                await canal_logs.send(embed=embed_cerrado)
-
-            cursor.execute("DELETE FROM boxes WHERE thread_id = ?", (thread_id,))
-            conn.commit()
-
-@sistema_gestion_boxes.before_loop
-async def antes_de_loop():
-    await bot.wait_until_ready()
     
 # 📌 CONFIGURACIÓN DE IDs
 ID_CANAL_ANUNCIOS_ADV = 1436358970284572723  # Canal donde se enviarán los embeds
@@ -1392,416 +979,389 @@ async def aventura_carnavalbuff(ctx):
     await canal.send(content=f"Ping: {mencion} ⚡ **[BUFF ACTIVO]**", embed=embed)
 
 
-# ==================================================
-# 🗄️ BASE DE DATOS (SQLite para Puntos y Leaderboard)
-# ==================================================
-conn = sqlite3.connect("minigames.db")
-cursor = conn.cursor()
+# little boxes
+async def registrar_y_abrir_little_box(
+    *,
+    hilo: discord.Thread,
+    dueno: discord.Member,
+    nombre: str,
+    tipo: str,
+    canal_logs: discord.TextChannel | None = None,
+    imagen_url: str | None = None,
+    extras_menciones: str = "",
+    dias_duracion: int = 20,
+):
+    ahora = datetime.now()
+    expiracion = ahora + timedelta(days=dias_duracion)
 
-cursor.execute('''
-    CREATE TABLE IF NOT EXISTS minigames_scores (
-        user_id INTEGER PRIMARY KEY,
-        points INTEGER DEFAULT 0
+    ts_adq = int(ahora.timestamp())
+    ts_exp = int(expiracion.timestamp())
+
+    # 1. Saludo inicial dentro del hilo
+    menciones = f"{dueno.mention} {extras_menciones}".strip()
+    await hilo.send(f"Bienvenid@ a tu **Little Box** {menciones}.")
+
+    # 2. Embed de bienvenida en el hilo
+    embed_bienvenida = discord.Embed(
+        title=nombre,
+        description=(
+            "Bienvenidos a su Little Box.\n"
+            "Por favor recuerden respetar el reglamento del servidor.\n\n"
+            "🌸 **Inactividad prolongada**\n"
+            "La Little Box cerrará automáticamente si transcurren **7 días de inactividad**.\n\n"
+            "🌸 **Little Box adquirida hasta**\n"
+            f"<t:{ts_exp}:F> (`<t:{ts_exp}:R>`)"
+        ),
+        color=0xF48FB1,
     )
-''')
-conn.commit()
-
-# Variable de control global para los minijuegos
-MINIGAMES_ENABLED = True
-
-# 🛠️ AÑADE ESTO AQUÍ: Tabla para el sistema de Little Boxes
-cursor.execute('''
-    CREATE TABLE IF NOT EXISTS boxes (
-        thread_id INTEGER PRIMARY KEY,
-        owner_id INTEGER,
-        nombre_box TEXT,
-        tipo TEXT,
-        creacion TEXT,
-        expiracion TEXT,
-        extendida INTEGER DEFAULT 0
+    if imagen_url:
+        embed_bienvenida.set_image(url=imagen_url)
+    embed_bienvenida.set_footer(
+        text=f"ID de Little Box: {hilo.id} • {ahora.strftime('%d/%m/%Y %I:%M %p')}"
     )
-''')
 
-conn.commit()
+    msg_embed = await hilo.send(embed=embed_bienvenida)
 
-# Función auxiliar para sumar puntos
-async def sumar_punto(user_id):
-    cursor.execute("SELECT points FROM minigames_scores WHERE user_id = ?", (user_id,))
-    resultado = cursor.fetchone()
-    if resultado:
-        nuevos_puntos = resultado[0] + 1
-        cursor.execute("UPDATE minigames_scores SET points = ? WHERE user_id = ?", (nuevos_puntos, user_id))
-    else:
-        cursor.execute("INSERT INTO minigames_scores VALUES (?, 1)", (user_id,))
-    conn.commit()
+    # 3. Fijar el mensaje del embed
+    try:
+        await msg_embed.pin()
+    except discord.Forbidden:
+        print(f"⚠️ No tengo permisos para fijar mensajes en el hilo {hilo.id}")
 
-
-# ==================================================
-# 🎣 DETECTOR AUTOMÁTICO DE PALABRAS CLAVE (on_message)
-# ==================================================
-@bot.event
-async def on_message(message):
-    if message.author.bot:
-        return
-
-    content = message.content.lower()
-    keywords = ["mine", "fish", "work"]
-
-    # 🎮 Solo lanza minijuegos si el sistema está activo globalmente
-    if MINIGAMES_ENABLED and any(kw in content for kw in keywords):
-        await lanzar_minijuego_interactivo(message)
-        return
-
-    await bot.process_commands(message)
-
-# ==================================================
-# 🎮 COMANDO: ACTIVAR / DESACTIVAR MINIJUEGOS (?toggleminigames)
-# ==================================================
-@bot.command(name="toggleminigames", aliases=["minijuegos", "togglejuegos"])
-@es_staff_por_id()
-async def toggleminigames(ctx, estado: str = None):
-    """Enciende o apaga el sistema global de minijuegos (Ej: ?minijuegos on / off)"""
-    global MINIGAMES_ENABLED
-
-    if estado is None:
-        estado_actualchek = "🟢 **Activados**" if MINIGAMES_ENABLED else "🔴 **Desactivados**"
-        return await ctx.send(f"ℹ️ El sistema de minijuegos actualmente está: {estado_actualchek}\nUsa `?minijuegos on` o `?minijuegos off` para cambiarlo.", delete_after=10)
-
-    estado = estado.lower()
-    if estado in ["on", "activar", "encender", "true"]:
-        MINIGAMES_ENABLED = True
-        embed = discord.Embed(
-            title="🟢 Minijuegos Activados",
-            description="¡El sistema de minijuegos por palabras clave (`mine`, `fish`, `work`) ha sido **habilitado** en el servidor!",
-            color=0x2ECC71
+    # 4. Guardar en SQLite
+    with database.get_conn() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            INSERT OR REPLACE INTO boxes (
+                thread_id, owner_id, nombre, tipo,
+                fecha_adquisicion, fecha_expiracion, mensaje_fijado_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                hilo.id,
+                dueno.id,
+                nombre,
+                tipo,
+                ahora.isoformat(),
+                expiracion.isoformat(),
+                msg_embed.id,
+            ),
         )
-        await ctx.send(embed=embed)
+        conn.commit()
+
+    # 5. Log de "Little Box creada" en el canal de logs
+    if canal_logs:
+        embed_log = discord.Embed(
+            title="Little Box creada",
+            description=(
+                f"• **Nombre:** {nombre}\n"
+                f"• **Dueño/a:** {dueno.display_name} ({dueno.mention})\n"
+                f"• **Tipo:** {tipo}\n"
+                f"• **Adquisición:** <t:{ts_adq}:f>\n"
+                f"• **Expiración:** <t:{ts_exp}:f> (`<t:{ts_exp}:R>`)"
+            ),
+            color=0xA8E6CF,
+        )
+        embed_log.set_footer(text=f"ID de Little Box: {hilo.id}")
+        await canal_logs.send(embed=embed_log)
+
+    return msg_embed
+
+# SISTEMA NUEVO LITTLE BOX
+class CrearLittleBoxModal(discord.ui.Modal, title="Crear nueva Little Box"):
+    dueno_input = discord.ui.TextInput(
+        label="Dueño/a (ID o @mención)",
+        placeholder="Ej: 454867219453575168 o @usuario",
+        required=True,
+    )
+    nombre_input = discord.ui.TextInput(
+        label="Nombre de la Little Box",
+        placeholder="Ej: DawesBedside",
+        max_length=80,
+        required=True,
+    )
+    tipo_input = discord.ui.TextInput(
+        label="Tipo de Little Box",
+        placeholder="Ej: Mini, Duplex...",
+        max_length=40,
+        required=True,
+    )
+
+    def __init__(self, canal_logs_id: int | None = None, imagen_url: str | None = None):
+        super().__init__()
+        self.canal_logs_id = canal_logs_id
+        self.imagen_url = imagen_url
+
+    async def on_submit(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+
+        if not interaction.guild or not isinstance(interaction.channel, discord.TextChannel):
+            return await interaction.followup.send(
+                "❌ Usa este botón dentro de un canal de texto del servidor.",
+                ephemeral=True,
+            )
+
+        # Extraer ID numérico de la mención o ID escrito
+        raw_dueno = self.dueno_input.value.strip().strip("<@!>")
+        if not raw_dueno.isdigit():
+            return await interaction.followup.send(
+                "❌ El ID o mención del dueño/a no es válido.",
+                ephemeral=True,
+            )
+
+        miembro = interaction.guild.get_member(int(raw_dueno))
+        if not miembro:
+            try:
+                miembro = await interaction.guild.fetch_member(int(raw_dueno))
+            except discord.NotFound:
+                return await interaction.followup.send(
+                    "❌ No encontré a ese miembro en el servidor.",
+                    ephemeral=True,
+                )
+
+        nombre = self.nombre_input.value.strip()
+        tipo = self.tipo_input.value.strip()
+
+        # Crear hilo privado en el canal actual
+        hilo = await interaction.channel.create_thread(
+            name=nombre[:100],
+            type=discord.ChannelType.private_thread,
+            invitable=False,
+        )
+        await hilo.add_user(miembro)
+        await hilo.add_user(interaction.user)
+
+        canal_logs = (
+            interaction.guild.get_channel(self.canal_logs_id)
+            if self.canal_logs_id
+            else None
+        )
+
+        await registrar_y_abrir_little_box(
+            hilo=hilo,
+            dueno=miembro,
+            nombre=nombre,
+            tipo=tipo,
+            canal_logs=canal_logs if isinstance(canal_logs, discord.TextChannel) else None,
+            imagen_url=self.imagen_url,
+        )
+
+        await interaction.followup.send(
+            f"✅ Little Box **{nombre}** creada en {hilo.mention}.",
+            ephemeral=True,
+        )
+
         
-    elif estado in ["off", "desactivar", "apagar", "false"]:
-        MINIGAMES_ENABLED = False
-        embed = discord.Embed(
-            title="🔴 Minijuegos Desactivados",
-            description="El sistema de minijuegos ha sido **pausado temporalmente** por el Staff.",
-            color=0xE74C3C
+
+
+class PanelLittleBoxView(discord.ui.View):
+    def __init__(self, canal_logs_id: int | None = None, imagen_url: str | None = None):
+        super().__init__(timeout=None)
+        self.canal_logs_id = canal_logs_id
+        self.imagen_url = imagen_url
+
+    @discord.ui.button(
+        label="Crear Little Box",
+        style=discord.ButtonStyle.primary,
+        custom_id="crazy_cats_btn_crear_little_box",
+    )
+    async def boton_crear_box(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_modal(
+            CrearLittleBoxModal(
+                canal_logs_id=self.canal_logs_id,
+                imagen_url=self.imagen_url,
+            )
         )
-        await ctx.send(embed=embed)
-    else:
-        await ctx.send("❌ Opción no válida. Usa `?minijuegos on` para encenderlos o `?minijuegos off` para apagarlos.", delete_after=8)
 
-# ==================================================
-# 🎲 SELECCIONADOR ALEATORIO DE MINIJUEGOS (8 Variantes con Botones)
-# ==================================================
-async def lanzar_minijuego_interactivo(message):
-    juego_id = random.randint(1, 8)
-    
-    if juego_id == 1:
-        await juego_cofre_tesoro(message)
-    elif juego_id == 2:
-        await juego_cristal_minero(message)
-    elif juego_id == 3:
-        await juego_anzuelo_magico(message)
-    elif juego_id == 4:
-        await juego_cables_sistema(message)
-    elif juego_id == 5:
-        await juego_gatito_oculto(message)
-    elif juego_id == 6:
-        await juego_pocion_magica(message)
-    elif juego_id == 7:
-        await juego_estrella_fugaz(message)
-    elif juego_id == 8:
-        await juego_llave_maestra(message)
-
-
-# --- 1. COFRE DEL TESORO ---
-async def juego_cofre_tesoro(message):
-    class View(discord.ui.View):
-        def __init__(self):
-            super().__init__(timeout=20)
-            self.ganador = random.randint(1, 3)
-            for i in range(1, 4):
-                btn = discord.ui.Button(label=f"Cofre #{i}", style=discord.ButtonStyle.secondary, custom_id=f"cofre_{i}")
-                btn.callback = self.callback
-                self.add_item(btn)
-
-        async def callback(self, interaction: discord.ui.Interaction):
-            if interaction.user != message.author:
-                return await interaction.response.send_message("❌ Este juego no es tuyo.", ephemeral=True)
-            num = int(interaction.data["custom_id"].split("_")[1])
-            if num == self.ganador:
-                await sumar_punto(message.author.id)
-                await interaction.response.edit_message(content=None, embed=discord.Embed(title="🎉 ¡Tesoro Encontrado!", description=f"¡Felicidades {message.author.mention}! Hallaste monedas valiosas en el cofre #{num}. **(+1 Punto)**", color=0x2ECC71), view=None)
-            else:
-                await interaction.response.edit_message(content=None, embed=discord.Embed(title="💨 ¡Cofre Vacío!", description=f"El cofre #{num} estaba vacío. ¡Más suerte la próxima!", color=0xE74C3C), view=None)
-            self.stop()
-
-    embed = discord.Embed(title="⛏️ Exploración de Minas", description="¡Te adentraste en las profundidades! Elige uno de los 3 cofres antes de que expiren.", color=0xF1C40F)
-    await message.channel.send(embed=embed, view=View())
-
-
-# --- 2. EL CRISTAL MINERO ---
-async def juego_cristal_minero(message):
-    class View(discord.ui.View):
-        def __init__(self):
-            super().__init__(timeout=20)
-            cristales = [("💎 Diamante", discord.ButtonStyle.success), ("🔴 Rubí", discord.ButtonStyle.danger), ("🔵 Zafiro", discord.ButtonStyle.primary), ("⚫ Carbón", discord.ButtonStyle.secondary)]
-            self.ganador = "💎 Diamante"
-            random.shuffle(cristales)
-            for label, style in cristales:
-                btn = discord.ui.Button(label=label, style=style, custom_id=label)
-                btn.callback = self.callback
-                self.add_item(btn)
-
-        async def callback(self, interaction: discord.ui.Interaction):
-            if interaction.user != message.author:
-                return await interaction.response.send_message("❌ Este juego no es tuyo.", ephemeral=True)
-            if interaction.data["custom_id"] == self.ganador:
-                await sumar_punto(message.author.id)
-                await interaction.response.edit_message(content=None, embed=discord.Embed(title="✨ ¡Excelente Excavación!", description=f"¡Extrajiste un **Diamante puro** {message.author.mention}! **(+1 Punto)**", color=0x2ECC71), view=None)
-            else:
-                await interaction.response.edit_message(content=None, embed=discord.Embed(title="💥 ¡Piedra Común!", description=f"Golpeste material sin valor ({interaction.data['custom_id']}).", color=0xE74C3C), view=None)
-            self.stop()
-
-    embed = discord.Embed(title="💎 Veta de Minerales", description="Golpea la roca con el pico y selecciona el cristal más valioso.", color=0x3498DB)
-    await message.channel.send(embed=embed, view=View())
-
-
-# --- 3. EL ANZUELO MÁGICO ---
-async def juego_anzuelo_magico(message):
-    class View(discord.ui.View):
-        def __init__(self):
-            super().__init__(timeout=20)
-            cebos = [("🐟 Pez Dorado", True), ("👢 Bota Vieja", False), ("🦀 Cangrejo", False)]
-            random.shuffle(cebos)
-            for label, es_valioso in cebos:
-                btn = discord.ui.Button(label=label, style=discord.ButtonStyle.primary, custom_id=str(es_valioso))
-                btn.callback = self.callback
-                self.add_item(btn)
-
-        async def callback(self, interaction: discord.ui.Interaction):
-            if interaction.user != message.author:
-                return await interaction.response.send_message("❌ Este juego no es tuyo.", ephemeral=True)
-            if interaction.data["custom_id"] == "True":
-                await sumar_punto(message.author.id)
-                await interaction.response.edit_message(content=None, embed=discord.Embed(title="🎣 ¡Gran Pesca!", description=f"¡Atrapaste una magnífica pieza {message.author.mention}! **(+1 Punto)**", color=0x2ECC71), view=None)
-            else:
-                await interaction.response.edit_message(content=None, embed=discord.Embed(title="💦 ¡Se escapó!", description="Atrapaste basura u objeto inútil del fondo del lago.", color=0xE74C3C), view=None)
-            self.stop()
-
-    embed = discord.Embed(title="🎣 Sesión de Pesca", description="¡El agua se mueve! Tira de la cuerda eligiendo el señuelo correcto.", color=0x1ABC9C)
-    await message.channel.send(embed=embed, view=View())
-
-
-# --- 4. DESACTIVAR EL MECANISMO ---
-async def juego_cables_sistema(message):
-    class View(discord.ui.View):
-        def __init__(self):
-            super().__init__(timeout=20)
-            colores = [("Cable Azul", False), ("Cable Rojo", True), ("Cable Verde", False)]
-            random.shuffle(colores)
-            for idx,label, correcto in colores:
-                btn = discord.ui.Button(label=label, style=discord.ButtonStyle.secondary, custom_id=f"cable_btn_{idx}"(correcto))
-                btn.callback = self.callback
-                self.add_item(btn)
-
-        async def callback(self, interaction: discord.ui.Interaction):
-            if interaction.user != message.author:
-                return await interaction.response.send_message("❌ Este juego no es tuyo.", ephemeral=True)
-            if interaction.data["custom_id"] == "True":
-                await sumar_punto(message.author.id)
-                await interaction.response.edit_message(content=None, embed=discord.Embed(title="⚡ ¡Mantenimiento Exitoso!", description=f"Reparaste el sistema a tiempo {message.author.mention}. **(+1 Punto)**", color=0x2ECC71), view=None)
-            else:
-                await interaction.response.edit_message(content=None, embed=discord.Embed(title="💥 ¡Cortocircuito!", description="Elegiste el cable incorrecto y falló la maquinaria.", color=0xE74C3C), view=None)
-            self.stop()
-
-    embed = discord.Embed(title="⚙️ Jornada Laboral", description="Hay un fallo técnico en el taller. Corta el cable correcto para completar tu trabajo.", color=0xE67E22)
-    await message.channel.send(embed=embed, view=View())
-
-
-# --- 5. ENCUENTRA AL GATITO ---
-async def juego_gatito_oculto(message):
-    class View(discord.ui.View):
-        def __init__(self):
-            super().__init__(timeout=20)
-            self.ganador = random.randint(1, 4)
-            for i in range(1, 5):
-                btn = discord.ui.Button(label=f"Caja #{i}", style=discord.ButtonStyle.primary, custom_id=f"caja_{i}")
-                btn.callback = self.callback
-                self.add_item(btn)
-
-        async def callback(self, interaction: discord.ui.Interaction):
-            if interaction.user != message.author:
-                return await interaction.response.send_message("❌ Este juego no es tuyo.", ephemeral=True)
-            num = int(interaction.data["custom_id"].split("_")[1])
-            if num == self.ganador:
-                await sumar_punto(message.author.id)
-                await interaction.response.edit_message(content=None, embed=discord.Embed(title="🐱 ¡Apareció un Gatito!", description=f"¡Encontraste al tierno gatito escondido en la caja #{num} {message.author.mention}! **(+1 Punto)**", color=0xF1C40F), view=None)
-            else:
-                await interaction.response.edit_message(content=None, embed=discord.Embed(title="📦 ¡Caja Vacia!", description=f"Revisaste la caja #{num} pero solo habia polvo.", color=0x7F8C8D), view=None)
-            self.stop()
-
-    embed = discord.Embed(title="🐾 Búsqueda Felina", description="¡Hay gatitos traviesos jugando en el almacén Crazy Cats! Encuentra en qué caja se ocultó.", color=0xFFB6C1)
-    await message.channel.send(embed=embed, view=View())
-
-
-# --- 6. POCIÓN DE LA SUERTE ---
-async def juego_pocion_magica(message):
-    class View(discord.ui.View):
-        def __init__(self):
-            super().__init__(timeout=20)
-            self.ganador = random.randint(1, 3)
-            for i in range(1, 4):
-                btn = discord.ui.Button(label=f"Frasco #{i}", style=discord.ButtonStyle.success, custom_id=f"frasco_{i}")
-                btn.callback = self.callback
-                self.add_item(btn)
-
-        async def callback(self, interaction: discord.ui.Interaction):
-            if interaction.user != message.author:
-                return await interaction.response.send_message("❌ Este juego no es tuyo.", ephemeral=True)
-            num = int(interaction.data["custom_id"].split("_")[1])
-            if num == self.ganador:
-                await sumar_punto(message.author.id)
-                await interaction.response.edit_message(content=None, embed=discord.Embed(title="🧪 ¡Poción Correcta!", description=f"¡Creaste el tónico perfecto {message.author.mention}! **(+1 Punto)**", color=0x2ECC71), view=None)
-            else:
-                await interaction.response.edit_message(content=None, embed=discord.Embed(title="💨 ¡Efervescencia Fallida!", description="El frasco burbujeó de más y perdió su efecto.", color=0xE74C3C), view=None)
-            self.stop()
-
-    embed = discord.Embed(title="🔮 Laboratorio de Pociones", description="Mezcla los ingredientes seleccionando el frasco de esencia correcto.", color=0x9B59B6)
-    await message.channel.send(embed=embed, view=View())
-
-
-# --- 7. ESTRELLA FUGAZ ---
-async def juego_estrella_fugaz(message):
-    class View(discord.ui.View):
-        def __init__(self):
-            super().__init__(timeout=20)
-            self.ganador = random.randint(1, 3)
-            for i in range(1, 4):
-                btn = discord.ui.Button(label=f"🌟 Estrella #{i}", style=discord.ButtonStyle.primary, custom_id=f"est_{i}")
-                btn.callback = self.callback
-                self.add_item(btn)
-
-        async def callback(self, interaction: discord.ui.Interaction):
-            if interaction.user != message.author:
-                return await interaction.response.send_message("❌ Este juego no es tuyo.", ephemeral=True)
-            num = int(interaction.data["custom_id"].split("_")[1])
-            if num == self.ganador:
-                await sumar_punto(message.author.id)
-                await interaction.response.edit_message(content=None, embed=discord.Embed(title="⭐ ¡Deseo Concedido!", description=f"¡Atrapaste la estrella fugaz del cielo nocturno {message.author.mention}! **(+1 Punto)**", color=0xF1C40F), view=None)
-            else:
-                await interaction.response.edit_message(content=None, embed=discord.Embed(title="🌌 ¡Se desvaneció!", description="La estrella parpadeó y desapareció antes de tocarla.", color=0x34495E), view=None)
-            self.stop()
-
-    embed = discord.Embed(title="🌠 Lluvia de Estrellas", description="El cielo nocturno brilla. Atrapa la estrella correcta con un clic.", color=0xF39C12)
-    await message.channel.send(embed=embed, view=View())
-
-
-# --- 8. LLAVE MAESTRA ---
-async def juego_llave_maestra(message):
-    class View(discord.ui.View):
-        def __init__(self):
-            super().__init__(timeout=20)
-            self.ganador = random.randint(1, 3)
-            for i in range(1, 4):
-                btn = discord.ui.Button(label=f"Llave #{i}", style=discord.ButtonStyle.secondary, custom_id=f"llave_{i}")
-                btn.callback = self.callback
-                self.add_item(btn)
-
-        async def callback(self, interaction: discord.ui.Interaction):
-            if interaction.user != message.author:
-                return await interaction.response.send_message("❌ Este juego no es tuyo.", ephemeral=True)
-            num = int(interaction.data["custom_id"].split("_")[1])
-            if num == self.ganador:
-                await sumar_punto(message.author.id)
-                await interaction.response.edit_message(content=None, embed=discord.Embed(title="🗝️ ¡Puerta Abierta!", description=f"¡La llave #{num} giró perfecta en la cerradura {message.author.mention}! **(+1 Punto)**", color=0x2ECC71), view=None)
-            else:
-                await interaction.response.edit_message(content=None, embed=discord.Embed(title="🔒 ¡Llave Incorrecta!", description="La llave se atascó en la cerradura y no abrió.", color=0xE74C3C), view=None)
-            self.stop()
-
-    embed = discord.Embed(title="🗝️ Puerta Secreta", description="En contraste un cofre cerrado con candado antiguo. Prueba la llave correcta.", color=0xD4AC0D)
-    await message.channel.send(embed=embed, view=View())
-
-
-# ==================================================
-# 🏆 COMANDOS DE LEADERBOARD Y GESTIÓN PARA EL STAFF
-# ==================================================
-
-# 1. Ver Leaderboard (Público)
-@bot.command(name="top", aliases=["leaderboard", "puntos"])
-async def leaderboard(ctx):
-    """Muestra el top de jugadores más activos en minijuegos"""
-    cursor.execute("SELECT user_id, points FROM minigames_scores ORDER BY points DESC LIMIT 10")
-    top_usuarios = cursor.fetchall()
-
-    if not top_usuarios:
-        return await ctx.send("📊 Aún no hay registros en la tabla de clasificación.")
-
-    descripcion = ""
-    for idx, (uid, pts) in enumerate(top_usuarios, start=1):
-        medalla = "🥇" if idx == 1 else "🥈" if idx == 2 else "🥉" if idx == 3 else f"`#{idx}`"
-        descripcion += f"{medalla} <@{uid}> — **{pts} puntos**\n"
-
+@bot.command(name="panelbox")
+@commands.has_permissions(administrator=True)
+async def panelbox(ctx: commands.Context):
     embed = discord.Embed(
-        title="🏆 Tabla de Clasificación • Mini Juegos",
-        description=descripcion,
-        color=0xF1C40F,
-        timestamp=discord.utils.utcnow()
+        title="🌸 Panel de Little Boxes",
+        description="Presiona el botón de abajo para crear y registrar una nueva **Little Box**.",
+        color=0xF48FB1,
     )
-    embed.set_footer(text=f"Solicitado por {ctx.author.name}", icon_url=ctx.author.display_avatar.url)
-    await ctx.send(embed=embed)
-
-
-# 2. Staff: Reiniciar Leaderboard por completo
-@bot.command(name="resetlb", aliases=["reiniciartop"])
-@es_staff_por_id()
-async def resetlb(ctx):
-    """Limpia la tabla de puntos para iniciar una nueva temporada"""
-    cursor.execute("DELETE FROM minigames_scores")
-    conn.commit()
-
-    embed = discord.Embed(
-        title="🔄 Leaderboard Reiniciado",
-        description="Se han borrado todos los puntajes anteriores. ¡Una nueva temporada ha comenzado!",
-        color=0xE74C3C,
-        timestamp=discord.utils.utcnow()
+    await ctx.send(
+        embed=embed,
+        view=PanelLittleBoxView(
+            canal_logs_id=1477110955669323899,
+            imagen_url="https://cdn.discordapp.com/attachments/1450135217493901322/1573566871645593650/5668a49ffbeda60f9486188b64aec2f9.jpg?ex=6b0279d9&is=6b012859&hm=1939ba4f4eb44845e7c8f53e892af23e16bff484b5ce28443b3314f33dce462f&",
+        ),
     )
-    await ctx.send(embed=embed)
+
+CANAL_LOGS_LITTLE_BOXES_ID = 1477110955669323899
+
+# FUNCION FUNCION
+async def extender_little_box(
+    *,
+    guild: discord.Guild,
+    hilo: discord.Thread,
+    dias_extra: int = 20,
+    extendido_por: discord.Member | discord.User | None = None,
+):
+    with database.get_conn() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT owner_id, nombre, tipo, fecha_expiracion, mensaje_fijado_id
+            FROM boxes
+            WHERE thread_id = ?
+            """,
+            (hilo.id,),
+        )
+        fila = cursor.fetchone()
+
+    if not fila:
+        return None, "⚠️ Este hilo no está registrado como una Little Box en la base de datos."
+
+    owner_id, nombre, tipo, fecha_exp_str, mensaje_fijado_id = fila
+    ahora = datetime.now()
+
+    try:
+        exp_actual = datetime.fromisoformat(fecha_exp_str)
+    except (TypeError, ValueError):
+        exp_actual = ahora
+
+    # Si ya venció, sumamos desde ahora; si sigue vigente, sumamos sobre su fecha actual
+    base_fecha = exp_actual if exp_actual > ahora else ahora
+    nueva_expiracion = base_fecha + timedelta(days=dias_extra)
+    ts_nueva_exp = int(nueva_expiracion.timestamp())
+
+    # 1. Actualizar fecha_expiracion en SQLite
+    with database.get_conn() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            UPDATE boxes
+            SET fecha_expiracion = ?
+            WHERE thread_id = ?
+            """,
+            (nueva_expiracion.isoformat(), hilo.id),
+        )
+        conn.commit()
+
+    # 2. Intentar actualizar el embed fijado de bienvenida con la nueva fecha
+    if mensaje_fijado_id:
+        try:
+            msg_fijado = await hilo.fetch_message(mensaje_fijado_id)
+            if msg_fijado.embeds:
+                embed_actual = msg_fijado.embeds[0]
+                nueva_desc = (
+                    "Bienvenidos a su Little Box.\n"
+                    "Por favor recuerden respetar el reglamento del servidor.\n\n"
+                    "🌸 **Inactividad prolongada**\n"
+                    "La Little Box cerrará automáticamente si transcurren **7 días de inactividad**.\n\n"
+                    "🌸 **Little Box adquirida hasta**\n"
+                    f"<t:{ts_nueva_exp}:F> (`<t:{ts_nueva_exp}:R>`)"
+                )
+                embed_actual.description = nueva_desc
+                await msg_fijado.edit(embed=embed_actual)
+        except (discord.NotFound, discord.Forbidden, discord.HTTPException):
+            pass
+
+    # 3. Enviar log de "Little Box extendida"
+    canal_logs = guild.get_channel(CANAL_LOGS_LITTLE_BOXES_ID)
+    if isinstance(canal_logs, discord.TextChannel):
+        dueno_mention = f"<@{owner_id}>" if owner_id else "Desconocido"
+        staff_linea = (
+            f"• **Extendida por:** {extendido_por.mention}\n" if extendido_por else ""
+        )
+        embed_log = discord.Embed(
+            title="Little Box extendida",
+            description=(
+                f"• **Nombre:** {nombre}\n"
+                f"• **Dueño/a:** {dueno_mention}\n"
+                f"• **Tipo:** {tipo}\n"
+                f"• **Días añadidos:** +{dias_extra} días\n"
+                f"{staff_linea}"
+                f"• **Nueva expiración:** <t:{ts_nueva_exp}:f> (`<t:{ts_nueva_exp}:R>`)"
+            ),
+            color=0xFFD3B6,
+        )
+        embed_log.set_footer(text=f"ID de Little Box: {hilo.id}")
+        await canal_logs.send(embed=embed_log)
+
+    return nueva_expiracion, None
 
 
-# 3. Staff: Eliminar a un usuario específico del Leaderboard
-@bot.command(name="deluserlb", aliases=["quitaruserlb"])
-@es_staff_por_id()
-async def deluserlb(ctx, miembro: discord.Member):
-    """Elimina los puntos de un usuario del leaderboard"""
-    cursor.execute("DELETE FROM minigames_scores WHERE user_id = ?", (miembro.id,))
-    conn.commit()
-    await ctx.send(f"✅ Se han borrado los datos y puntos de {miembro.mention} del leaderboard.", delete_after=6)
+@bot.command(name="extenderbox")
+@commands.has_permissions(administrator=True)
+async def extenderbox(ctx: commands.Context, dias: int = 20):
+    if not ctx.guild or not isinstance(ctx.channel, discord.Thread):
+        return await ctx.send(
+            "❌ Usa este comando dentro del hilo de la **Little Box** que quieres extender."
+        )
+
+    if dias <= 0:
+        return await ctx.send("❌ La cantidad de días debe ser mayor a 0.")
+
+    nueva_exp, error = await extender_little_box(
+        guild=ctx.guild,
+        hilo=ctx.channel,
+        dias_extra=dias,
+        extendido_por=ctx.author,
+    )
+
+    if error:
+        return await ctx.send(error)
+
+    ts_exp = int(nueva_exp.timestamp())
+    await ctx.send(
+        f"🌸 Little Box extendida **+{dias} días**. Nueva fecha de expiración: <t:{ts_exp}:F> (`<t:{ts_exp}:R>`)."
+    )
+# SEGUNDO PLANO
+@tasks.loop(minutes=30)
+async def revisar_little_boxes_expiradas():
+    ahora = datetime.now()
+
+    with database.get_conn() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT thread_id, fecha_expiracion FROM boxes"
+        )
+        filas = cursor.fetchall()
+
+    for thread_id, fecha_exp_str in filas:
+        if not fecha_exp_str:
+            continue
+
+        try:
+            expiracion = datetime.fromisoformat(fecha_exp_str)
+        except ValueError:
+            continue
+
+        if ahora >= expiracion:
+            canal = bot.get_channel(thread_id)
+            if canal is None:
+                try:
+                    canal = await bot.fetch_channel(thread_id)
+                except (discord.NotFound, discord.Forbidden, discord.HTTPException):
+                    canal = None
+
+            if isinstance(canal, discord.Thread):
+                try:
+                    await canal.delete()
+                except (discord.NotFound, discord.Forbidden, discord.HTTPException):
+                    pass
+
+            with database.get_conn() as conn:
+                cursor = conn.cursor()
+                cursor.execute("DELETE FROM boxes WHERE thread_id = ?", (thread_id,))
+                conn.commit()
 
 
-# 4. Staff: Sumar o restar puntos manualmente a alguien
-@bot.command(name="addpuntos", aliases=["darapuntos"])
-@es_staff_por_id()
-async def addpuntos(ctx, miembro: discord.Member, cantidad: int):
-    """Ajusta los puntos de un usuario manualmente (ej: ?addpuntos @User 5)"""
-    cursor.execute("SELECT points FROM minigames_scores WHERE user_id = ?", (miembro.id,))
-    resultado = cursor.fetchone()
-    
-    if resultado:
-        nuevos_puntos = resultado[0] + cantidad
-        cursor.execute("UPDATE minigames_scores SET points = ? WHERE user_id = ?", (nuevos_puntos, miembro.id,))
-    else:
-        cursor.execute("INSERT INTO minigames_scores VALUES (?, ?)", (miembro.id, cantidad))
-    conn.commit()
-
-    await ctx.send(f"✨ Se han actualizado los puntos de {miembro.mention}. Ajuste aplicado: `{cantidad:+d}`", delete_after=6)
-
+@revisar_little_boxes_expiradas.before_loop
+async def antes_de_revisar_boxes():
+    await bot.wait_until_ready()
+# NO TOCAR 
 @bot.event
 async def on_ready():
-    print(f'¡Bot conectado como {bot.user} exitosamente!')
-    
-    # Iniciar la tarea automática de las Little Boxes
-    if not sistema_gestion_boxes.is_running():
-        sistema_gestion_boxes.start()
-        print("⏰ Tarea automática de Little Boxes iniciada.")
+    database.init_db()
+    if not revisar_little_boxes_expiradas.is_running():
+        revisar_little_boxes_expiradas.start()
+    bot.add_view(PanelLittleBoxView(canal_logs_id=1477110955669323899, imagen_url="(https://cdn.discordapp.com/attachments/1450135217493901322/1573566871645593650/5668a49ffbeda60f9486188b64aec2f9.jpg?ex=6b0279d9&is=6b012859&hm=1939ba4f4eb44845e7c8f53e892af23e16bff484b5ce28443b3314f33dce462f&"))
+    print(f"¡Bot conectado como {bot.user}! Base de datos de Little Boxes lista.")
 
 # EJECUCION INICIAL NO TOCAR NADA
 if __name__ == "__main__":
