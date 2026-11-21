@@ -1184,7 +1184,7 @@ def puede_gestionar_boxes():
     )
 
 @bot.command(name="panelbox")
-@commands.has_permissions(administrator=True)
+@commands.has_any_role(ROL_MODERADOR_ID)
 async def panelbox(ctx: commands.Context):
     embed = discord.Embed(
         title="🌸 Panel de Little Boxes",
@@ -1301,7 +1301,7 @@ async def extender_little_box(
 
 
 @bot.command(name="extenderbox")
-@commands.has_permissions(administrator=True)
+@commands.has_any_role(ROL_MODERADOR_ID)
 async def extenderbox(ctx: commands.Context, dias: int = 20):
     if not ctx.guild or not isinstance(ctx.channel, discord.Thread):
         return await ctx.send(
